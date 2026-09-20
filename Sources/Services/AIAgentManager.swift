@@ -43,7 +43,7 @@ public final class AIAgentManager: ObservableObject {
             ("Antigravity", "Antigravity", "com.google.antigravity", "/Applications/Antigravity.app"),
             ("DoubaoWork", "豆包工作", "com.work.pc.doubao", "/Applications/DoubaoWork.app"),
             ("MiniMax Code", "MiniMax Code", "com.minimax.agent.cn", "/Applications/MiniMax Code.app"),
-            ("ChatGPT", "ChatGPT", "com.openai.codex", "/Applications/ChatGPT.app"),
+            ("ChatGPT", "ChatGPT", "com.openai.chat", "/Applications/ChatGPT.app"),
             ("ZCode", "ZCode", "dev.zcode.app", "/Applications/ZCode.app"),
             ("OpenCode", "OpenCode", "ai.opencode.desktop", "/Applications/OpenCode.app"),
             ("Trae CN", "TRAE CN", "cn.trae.app", "/Applications/Trae CN.app")
@@ -52,17 +52,35 @@ public final class AIAgentManager: ObservableObject {
         let fm = FileManager.default
         return defs.enumerated().compactMap { idx, item in
             var path = item.path
+            var targetBundleId = item.bundle
+
             if !fm.fileExists(atPath: path) {
                 let home = NSHomeDirectory() + "/Applications/" + (path as NSString).lastPathComponent
-                if fm.fileExists(atPath: home) { path = home }
-                else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.bundle) { path = url.path }
+                if fm.fileExists(atPath: home) {
+                    path = home
+                } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.bundle) {
+                    path = url.path
+                } else if item.name == "ChatGPT", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") {
+                    path = url.path
+                }
             }
-            guard fm.fileExists(atPath: path) || NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.bundle) != nil else { return nil }
+            
+            // Check if app bundle exists or is known to workspace
+            let exists = fm.fileExists(atPath: path) || NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.bundle) != nil || (item.name == "ChatGPT" && NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") != nil)
+            guard exists else { return nil }
+
+            // Extract the actual bundle ID if available on disk
+            if let actualId = Bundle(path: path)?.bundleIdentifier {
+                targetBundleId = actualId
+            } else if item.name == "ChatGPT" && NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") != nil {
+                targetBundleId = "com.openai.codex"
+            }
+
             return AIAgentApp(
-                id: item.bundle,
+                id: targetBundleId,
                 name: item.name,
                 displayName: item.display,
-                bundleId: item.bundle,
+                bundleId: targetBundleId,
                 appPath: path,
                 sortOrder: idx
             )
@@ -120,6 +138,14 @@ public final class AIAgentManager: ObservableObject {
         var runningMap: [String: NSRunningApplication] = [:]
         for app in runningApps {
             if let bid = app.bundleIdentifier { runningMap[bid.lowercased()] = app }
+        }
+        
+        // Dynamically discover newly installed agents
+        let currentIds = Set(agents.map { $0.id.lowercased() })
+        for defAgent in Self.defaultAgents() {
+            if !currentIds.contains(defAgent.id.lowercased()) {
+                agents.append(defAgent)
+            }
         }
         
         for i in 0..<agents.count {

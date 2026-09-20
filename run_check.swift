@@ -76,8 +76,14 @@ struct CheckRunner {
                 assert(!seenStopped, "Running agent '\(agent.displayName)' at index \(i) must not appear after stopped agents! All running agents must be at the top.")
             }
         }
-        print("  [Pass] Priority sorting verified: All \(manager.runningCount) running agents are at the top, stopped agents at the bottom.")
+        // 8. Verify ChatGPT discovery
+        if let chatgpt = manager.agents.first(where: { $0.name == "ChatGPT" }) {
+            print("  [Pass] ChatGPT discovered: ID=\(chatgpt.bundleId), Running=\(chatgpt.isRunning)")
+            assert(!chatgpt.appPath.isEmpty, "ChatGPT appPath must not be empty")
+        } else {
+            fatalError("ChatGPT must be discovered if /Applications/ChatGPT.app exists")
+        }
 
-        print("[Check] All pure Token, model ID, real task, and priority sorting assertions passed successfully!")
+        print("[Check] All pure Token, model ID, real task, priority sorting, and ChatGPT assertions passed successfully!")
     }
 }

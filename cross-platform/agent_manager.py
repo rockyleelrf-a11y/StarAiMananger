@@ -66,7 +66,7 @@ def default_agents() -> list[AgentApp]:
         AgentApp("Antigravity", "Antigravity",   ["Antigravity", "antigravity"],                  sort_order=2),
         AgentApp("DoubaoWork",  "豆包工作",       ["DoubaoWork", "doubao"],                        sort_order=3),
         AgentApp("MiniMax",     "MiniMax Code",  ["MiniMax Code", "minimax"],                     sort_order=4),
-        AgentApp("ChatGPT",     "ChatGPT",       ["ChatGPT"],                                     sort_order=5),
+        AgentApp("ChatGPT",     "ChatGPT",       ["ChatGPT", "chatgpt", "Codex", "codex"],       sort_order=5),
         AgentApp("ZCode",       "ZCode",         ["ZCode", "zcode"],                              sort_order=6),
         AgentApp("OpenCode",    "OpenCode",      ["OpenCode", "opencode"],                        sort_order=7),
         AgentApp("TraeCN",      "Trae CN",       ["Trae CN", "trae-cn"],                          sort_order=8),
