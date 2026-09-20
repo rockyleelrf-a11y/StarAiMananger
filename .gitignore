@@ -1,0 +1,47 @@
+# Build artifacts
+build/
+dist/
+*.app
+*.dmg
+*.ipa
+
+# Swift
+.swift-cache/
+swift-cache/
+*.o
+*.d
+.build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# PyInstaller
+cross-platform/dist/
+cross-platform/build/
+cross-platform/*.spec
+cross-platform/AppDir/
+cross-platform/*.AppImage
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.icloud
+
+# Xcode (if ever used)
+xcuserdata/
+*.xcworkspace
+DerivedData/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs / temp
+*.log
+*.tmp
