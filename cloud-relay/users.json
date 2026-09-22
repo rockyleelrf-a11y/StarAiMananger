@@ -1,0 +1,13 @@
+{
+  "users": {
+    "rockyleelrf@gmail.com": {
+      "email": "rockyleelrf@gmail.com",
+      "passwordHash": "731fd62e4b1717b80d8c8de3df7c0b8b8ac504ec32d77932485ef8667e54a909",
+      "token": "230f844c0db57062736504130c2655c85f3938f5dd979306",
+      "registeredAt": 1790070656965
+    }
+  },
+  "tokens": {
+    "230f844c0db57062736504130c2655c85f3938f5dd979306": "rockyleelrf@gmail.com"
+  }
+}

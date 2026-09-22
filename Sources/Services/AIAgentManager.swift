@@ -222,6 +222,9 @@ public final class AIAgentManager: ObservableObject {
                 agents[i].pid = app.processIdentifier
                 agents[i].cpuPercent = app.isActive ? 6.5 : 0.8
                 agents[i].state = app.isActive ? .activeFocus : .idle
+                if let appIcon = app.icon {
+                    agents[i].icon = appIcon
+                }
             } else {
                 agents[i].isRunning = false
                 agents[i].pid = nil

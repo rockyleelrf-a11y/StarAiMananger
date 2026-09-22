@@ -101,24 +101,37 @@ public struct AIAgentApp: Identifiable {
     private static var iconCache: [String: String] = [:]
     
     public var iconBase64: String? {
-        if let cached = Self.iconCache[id] {
+        if let cached = Self.iconCache[id], !cached.isEmpty {
             return cached
         }
-        let targetSize = NSSize(width: 80, height: 80)
+        
+        var sourceIcon: NSImage = self.icon
+        if sourceIcon.size.width <= 0 || sourceIcon.size.height <= 0 {
+            if FileManager.default.fileExists(atPath: appPath) {
+                sourceIcon = NSWorkspace.shared.icon(forFile: appPath)
+            } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                sourceIcon = NSWorkspace.shared.icon(forFile: url.path)
+            }
+        }
+        
+        let targetSize = NSSize(width: 60, height: 60)
         let img = NSImage(size: targetSize)
         img.lockFocus()
-        icon.draw(in: NSRect(origin: .zero, size: targetSize),
-                  from: NSRect(origin: .zero, size: icon.size),
-                  operation: .copy,
-                  fraction: 1.0)
+        sourceIcon.draw(in: NSRect(origin: .zero, size: targetSize),
+                        from: NSRect(origin: .zero, size: sourceIcon.size),
+                        operation: .copy,
+                        fraction: 1.0)
         img.unlockFocus()
         
         guard let tiff = img.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:]) else {
+              let rep = NSBitmapImageRep(data: tiff) else {
             return nil
         }
-        let b64 = png.base64EncodedString()
+        
+        // Use JPEG 0.8 compression for crystal-clear visuals and ultra-compact ~8KB payload
+        let imgData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) ?? rep.representation(using: .png, properties: [:])
+        guard let data = imgData else { return nil }
+        let b64 = data.base64EncodedString()
         Self.iconCache[id] = b64
         return b64
     }
