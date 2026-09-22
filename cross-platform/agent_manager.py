@@ -62,14 +62,25 @@ def default_agents() -> list[AgentApp]:
     """Define agents by process name patterns (cross-platform)."""
     catalog = [
         AgentApp("TraeWork",    "TraeWork",      ["TRAE SOLO CN", "trae-solo", "trae"],          sort_order=0),
-        AgentApp("WorkBuddy",   "WorkBuddy",     ["WorkBuddy"],                                   sort_order=1),
+        AgentApp("WorkBuddy",   "WorkBuddy",     ["WorkBuddy", "workbuddy"],                      sort_order=1),
         AgentApp("Antigravity", "Antigravity",   ["Antigravity", "antigravity"],                  sort_order=2),
         AgentApp("DoubaoWork",  "豆包工作",       ["DoubaoWork", "doubao"],                        sort_order=3),
-        AgentApp("MiniMax",     "MiniMax Code",  ["MiniMax Code", "minimax"],                     sort_order=4),
-        AgentApp("ChatGPT",     "ChatGPT",       ["ChatGPT", "chatgpt", "Codex", "codex"],       sort_order=5),
-        AgentApp("ZCode",       "ZCode",         ["ZCode", "zcode"],                              sort_order=6),
-        AgentApp("OpenCode",    "OpenCode",      ["OpenCode", "opencode"],                        sort_order=7),
-        AgentApp("TraeCN",      "Trae CN",       ["Trae CN", "trae-cn"],                          sort_order=8),
+        AgentApp("Cline",       "Cline",         ["Cline", "cline"],                              sort_order=4),
+        AgentApp("StepFun",     "阶跃 AI",        ["阶跃AI", "stepfun", "stepfun-desktop"],       sort_order=5),
+        AgentApp("MiniMax",     "MiniMax Code",  ["MiniMax Code", "minimax"],                     sort_order=6),
+        AgentApp("ChatGPT",     "ChatGPT",       ["ChatGPT", "chatgpt", "Codex", "codex"],       sort_order=7),
+        AgentApp("ImaCopilot",  "ima.copilot",   ["ima.copilot", "imamac", "ima"],                sort_order=8),
+        AgentApp("Cursor",      "Cursor",        ["Cursor", "cursor"],                            sort_order=9),
+        AgentApp("Windsurf",    "Windsurf",      ["Windsurf", "windsurf"],                        sort_order=10),
+        AgentApp("Claude",      "Claude",        ["Claude", "claude"],                            sort_order=11),
+        AgentApp("Kimi",        "Kimi",          ["Kimi", "kimi"],                                sort_order=12),
+        AgentApp("Ollama",      "Ollama",        ["ollama", "Ollama"],                            sort_order=13),
+        AgentApp("LMStudio",    "LM Studio",     ["LM Studio", "lm-studio", "lmstudio"],          sort_order=14),
+        AgentApp("Goose",       "Goose",         ["Goose", "goose"],                              sort_order=15),
+        AgentApp("StarWriter",  "StarWriter",    ["StarWriter", "starwriter"],                    sort_order=16),
+        AgentApp("ZCode",       "ZCode",         ["ZCode", "zcode"],                              sort_order=17),
+        AgentApp("OpenCode",    "OpenCode",      ["OpenCode", "opencode"],                        sort_order=18),
+        AgentApp("TraeCN",      "Trae CN",       ["Trae CN", "trae-cn"],                          sort_order=19),
     ]
     return catalog
 
@@ -309,13 +320,89 @@ def probe_doubao(agent: AgentApp) -> None:
         agent.history_tokens = max(agent.history_tokens, 186_200)
 
 
+def probe_cline(agent: AgentApp) -> None:
+    agent.model_name = "Kimi-K3 (Cline)"
+    sessions_dir = Path.home() / ".cline/data/sessions"
+    if sessions_dir.exists():
+        try:
+            subdirs = [d for d in sessions_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
+            if subdirs:
+                latest = max(subdirs, key=lambda d: d.stat().st_mtime)
+                json_files = [f for f in latest.iterdir() if f.name.endswith(".json") and ".messages." not in f.name]
+                if json_files:
+                    data = json.loads(json_files[0].read_text(encoding="utf-8", errors="ignore"))
+                    m = data.get("model")
+                    if m:
+                        agent.model_name = m.split("/")[-1].upper().replace("KIMI-K3", "Kimi-K3")
+                    p = data.get("prompt", "")
+                    if p:
+                        if ">" in p and "</user_input" in p:
+                            p = p.split(">", 1)[1].split("</user_input")[0]
+                        ws = data.get("workspace_root", "")
+                        ws_name = Path(ws).name if ws else ""
+                        agent.current_task = f"{p.strip()} ({ws_name})" if ws_name else p.strip()
+        except Exception:
+            pass
+
+    if agent.is_running:
+        if not agent.current_task:
+            agent.current_task = "自主编码智能体执行中 (Autonomous Agent)"
+        agent.today_tokens = max(agent.today_tokens, 48_200)
+        agent.history_tokens = max(agent.history_tokens, 210_000)
+        agent.input_tokens = 32_100
+        agent.output_tokens = 16_100
+        agent.state = "inferencing" if agent.cpu_percent > 3.0 else "idle"
+        agent.tokens_per_sec = 88 if agent.cpu_percent > 3.0 else 0
+    else:
+        agent.current_task = None
+        agent.today_tokens = 0
+        agent.history_tokens = max(agent.history_tokens, 210_000)
+        agent.tokens_per_sec = 0
+
+
+def probe_stepfun(agent: AgentApp) -> None:
+    agent.display_name = "阶跃 AI"
+    agent.model_name = "Step-2 Pro"
+    setting_file = Path.home() / "Library/Application Support/stepfun-desktop/setting.json"
+    if setting_file.exists():
+        try:
+            data = json.loads(setting_file.read_text(encoding="utf-8", errors="ignore"))
+            mode = data.get("modelMode", "")
+            agent.model_name = "Step-2 Pro" if "pro" in mode.lower() else "Step-1V"
+        except Exception:
+            pass
+
+    if agent.is_running:
+        agent.current_task = "多模态屏幕感知与智能协同"
+        agent.today_tokens = max(agent.today_tokens, 26_800)
+        agent.history_tokens = max(agent.history_tokens, 115_000)
+        agent.input_tokens = 21_200
+        agent.output_tokens = 5_600
+        agent.state = "inferencing" if agent.cpu_percent > 3.0 else "idle"
+        agent.tokens_per_sec = 68 if agent.cpu_percent > 3.0 else 0
+    else:
+        agent.current_task = None
+        agent.today_tokens = 0
+        agent.history_tokens = max(agent.history_tokens, 115_000)
+        agent.tokens_per_sec = 0
+
+
 def probe_general(agent: AgentApp) -> None:
     static = {
-        "MiniMax":   ("MiniMax-ABAB 6.5",  "智能代码补全与专家问答",  12_300,  98_400),
-        "ChatGPT":   ("GPT-4o mini",        "对话问答与推理助手",      22_000,  62_000),
-        "ZCode":     ("ZCode-Core",         "本地代码分析与工程构建",  18_500,  45_000),
-        "OpenCode":  ("DeepSeek-Coder",     "智能终端调度助手",         8_000,  15_000),
-        "TraeCN":    ("DeepSeek-V4-Flash",  "Trae CN 代码助手",        10_000,  50_000),
+        "MiniMax":    ("MiniMax-ABAB 6.5",               "智能代码补全与专家问答",         12_300,  98_400),
+        "ChatGPT":    ("GPT-4o mini",                    "对话问答与推理助手",             22_000,  62_000),
+        "ImaCopilot": ("腾讯混元 (ima 智能体)",           "知识库问答与深度搜索",           19_400,  78_000),
+        "Cursor":     ("Claude 3.5 Sonnet",              "Cursor Agent 代码生成与审查",    55_000, 310_000),
+        "Windsurf":   ("Cascade (Flows)",                "Cascade 多文件实时协同编码",     42_000, 190_000),
+        "Claude":     ("Claude 3.7 Sonnet (Thinking)",   "深度推理与 Artifacts 实时交互",  38_000, 165_000),
+        "Kimi":       ("Kimi k1.5 (Moonshot)",           "超长上下文推理与深度全网检索",   28_000,  95_000),
+        "Ollama":     ("Llama 3.3 / Qwen 2.5",           "本地私有化大模型推理引擎",       15_000,  85_000),
+        "LMStudio":   ("Local Model Studio",             "本地多模型工作台与推理调度",     16_000,  72_000),
+        "Goose":      ("Goose Autonomous Agent",         "自主多工具调用智能体执行",       14_000,  45_000),
+        "StarWriter": ("StarWriter Agent (Trae)",        "AI 文章智能创作与自适应排版",    21_000,  64_000),
+        "ZCode":      ("ZCode-Core",                     "本地代码分析与工程构建",         18_500,  45_000),
+        "OpenCode":   ("DeepSeek-Coder",                 "智能终端调度助手",                8_000,  15_000),
+        "TraeCN":     ("DeepSeek-V4-Flash",              "Trae CN 代码助手",               10_000,  50_000),
     }
     info = static.get(agent.name)
     if info:
@@ -346,6 +433,10 @@ def probe(agent: AgentApp) -> None:
         probe_workbuddy(agent)
     elif "doubao" in n:
         probe_doubao(agent)
+    elif "cline" in n:
+        probe_cline(agent)
+    elif "stepfun" in n:
+        probe_stepfun(agent)
     else:
         probe_general(agent)
 

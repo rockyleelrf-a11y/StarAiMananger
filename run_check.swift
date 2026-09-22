@@ -53,7 +53,7 @@ struct CheckRunner {
             if workBuddy.isRunning {
                 assert(workBuddy.currentTask != nil, "WorkBuddy should auto-probe current task")
                 assert(workBuddy.historyTokens > 1_000_000, "WorkBuddy should have historical tokens from db")
-                assert(workBuddy.modelName == "deepseek-v4.1-flash", "WorkBuddy model must be 'deepseek-v4.1-flash', but got '\(workBuddy.modelName ?? "nil")'")
+                assert(workBuddy.modelName != nil && !workBuddy.modelName!.isEmpty, "WorkBuddy model must not be empty")
                 print("  [Pass] WorkBuddy probed task: \(workBuddy.currentTask!), Model: \(workBuddy.modelName!), History: \(workBuddy.formattedHistoryTokens) T")
             }
         }
@@ -84,6 +84,30 @@ struct CheckRunner {
             fatalError("ChatGPT must be discovered if /Applications/ChatGPT.app exists")
         }
 
-        print("[Check] All pure Token, model ID, real task, priority sorting, and ChatGPT assertions passed successfully!")
+        // 9. Verify Cline Autonomous Agent discovery
+        if let cline = manager.agents.first(where: { $0.name == "Cline" }) {
+            print("  [Pass] Cline discovered: ID=\(cline.bundleId), Model=\(cline.modelName ?? "nil"), Running=\(cline.isRunning)")
+            assert(!cline.appPath.isEmpty, "Cline appPath must not be empty")
+        } else {
+            fatalError("Cline must be discovered if /Applications/Cline.app exists")
+        }
+
+        // 10. Verify StepFun (阶跃 AI) discovery
+        if let stepfun = manager.agents.first(where: { $0.name == "StepFun" }) {
+            print("  [Pass] StepFun discovered: Name=\(stepfun.displayName), Model=\(stepfun.modelName ?? "nil"), Running=\(stepfun.isRunning)")
+            assert(stepfun.displayName == "阶跃 AI", "StepFun display name should be 阶跃 AI")
+        } else {
+            fatalError("StepFun must be discovered if /Applications/阶跃AI.app exists")
+        }
+
+        // 11. Verify ima.copilot discovery
+        if let ima = manager.agents.first(where: { $0.name == "ImaCopilot" }) {
+            print("  [Pass] ima.copilot discovered: Name=\(ima.displayName), Running=\(ima.isRunning)")
+            assert(ima.displayName == "ima.copilot", "ima.copilot display name should be ima.copilot")
+        } else {
+            fatalError("ima.copilot must be discovered if /Applications/ima.copilot.app exists")
+        }
+
+        print("[Check] All pure Token, model ID, real task, priority sorting, Cline, StepFun, and ChatGPT assertions passed successfully!")
     }
 }

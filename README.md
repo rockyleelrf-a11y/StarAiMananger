@@ -134,13 +134,24 @@ StarAiMananger/
 |------|-----------|----------|-----------|
 | **TraeWork** (TRAE SOLO CN) | ✅ | ✅ SQLite `state.vscdb` | ✅ |
 | **WorkBuddy** | ✅ | ✅ SQLite `workbuddy.db` | ✅ 精确 |
-| **Antigravity** | ✅ | ✅ `transcript.jsonl` | ✅ |
-| **豆包工作** | ✅ | ✅ 静态 `豆包 2.1 Turbo` | ✅ |
-| **MiniMax Code** | ✅ | ✅ | ✅ |
-| **ChatGPT** | ✅ | ✅ | ✅ |
-| **ZCode** | ✅ | ✅ | ✅ |
-| **OpenCode** | ✅ | ✅ | ✅ |
-| **Trae CN** | ✅ | ✅ | ✅ |
+| **Antigravity** | ✅ | ✅ `transcript.jsonl` | ✅ 精确 |
+| **豆包工作** | ✅ | ✅ `豆包 2.1 Turbo` | ✅ |
+| **Cline** (自主编码智能体) | ✅ | ✅ `sessions/*.json` | ✅ 精确 |
+| **阶跃 AI** (StepFun) | ✅ | ✅ `setting.json` / `desktop-share.db` | ✅ |
+| **ima.copilot** | ✅ | ✅ 腾讯混元 (ima 智能体) | ✅ |
+| **Cursor** | ✅ | ✅ Claude 3.5 Sonnet | ✅ |
+| **Windsurf** | ✅ | ✅ Cascade (Flows) | ✅ |
+| **Claude** (桌面版) | ✅ | ✅ Claude 3.7 Sonnet | ✅ |
+| **ChatGPT** | ✅ | ✅ GPT-4o mini | ✅ |
+| **Kimi** (Moonshot) | ✅ | ✅ Kimi k1.5 | ✅ |
+| **Ollama** (本地推理) | ✅ | ✅ Llama 3.3 / Qwen 2.5 | ✅ |
+| **LM Studio** | ✅ | ✅ 本地多模型调度 | ✅ |
+| **Goose** (自主智能体) | ✅ | ✅ Goose Agent | ✅ |
+| **StarWriter** | ✅ | ✅ StarWriter Agent | ✅ |
+| **MiniMax Code** | ✅ | ✅ MiniMax-ABAB 6.5 | ✅ |
+| **ZCode** | ✅ | ✅ ZCode-Core | ✅ |
+| **OpenCode** | ✅ | ✅ DeepSeek-Coder | ✅ |
+| **Trae CN** | ✅ | ✅ DeepSeek-V4-Flash | ✅ |
 
 ---
 

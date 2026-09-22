@@ -42,8 +42,19 @@ public final class AIAgentManager: ObservableObject {
             ("WorkBuddy", "WorkBuddy", "com.tencent.workbuddy.mac", "/Applications/WorkBuddy.app"),
             ("Antigravity", "Antigravity", "com.google.antigravity", "/Applications/Antigravity.app"),
             ("DoubaoWork", "豆包工作", "com.work.pc.doubao", "/Applications/DoubaoWork.app"),
+            ("Cline", "Cline", "bot.cline.app", "/Applications/Cline.app"),
+            ("StepFun", "阶跃 AI", "com.stepfun.desktop", "/Applications/阶跃AI.app"),
             ("MiniMax Code", "MiniMax Code", "com.minimax.agent.cn", "/Applications/MiniMax Code.app"),
             ("ChatGPT", "ChatGPT", "com.openai.chat", "/Applications/ChatGPT.app"),
+            ("ImaCopilot", "ima.copilot", "com.tencent.imamac", "/Applications/ima.copilot.app"),
+            ("Cursor", "Cursor", "com.todesktop.230313mzl4w4u92", "/Applications/Cursor.app"),
+            ("Windsurf", "Windsurf", "com.codeium.windsurf", "/Applications/Windsurf.app"),
+            ("Claude", "Claude", "com.anthropic.claudefordesktop", "/Applications/Claude.app"),
+            ("Kimi", "Kimi", "com.moonshot.kimi", "/Applications/Kimi.app"),
+            ("Ollama", "Ollama", "com.electron.ollama", "/Applications/Ollama.app"),
+            ("LM Studio", "LM Studio", "ai.elementlabs.lmstudio", "/Applications/LM Studio.app"),
+            ("Goose", "Goose", "com.block.goose", "/Applications/Goose.app"),
+            ("StarWriter", "StarWriter", "com.starwriter.app", "/Applications/StarWriter.app"),
             ("ZCode", "ZCode", "dev.zcode.app", "/Applications/ZCode.app"),
             ("OpenCode", "OpenCode", "ai.opencode.desktop", "/Applications/OpenCode.app"),
             ("Trae CN", "TRAE CN", "cn.trae.app", "/Applications/Trae CN.app")
@@ -62,6 +73,21 @@ public final class AIAgentManager: ObservableObject {
                     path = url.path
                 } else if item.name == "ChatGPT", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") {
                     path = url.path
+                } else if item.name == "Cursor", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.cursor.Cursor") {
+                    path = url.path
+                } else if item.name == "Windsurf", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.exafunction.windsurf") {
+                    path = url.path
+                } else if item.name == "Claude" {
+                    let chromeClaude = NSHomeDirectory() + "/Applications/Chrome Apps.localized/Claude.app"
+                    if fm.fileExists(atPath: chromeClaude) {
+                        path = chromeClaude
+                    } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claude") {
+                        path = url.path
+                    }
+                } else if item.name == "StepFun" {
+                    for alt in ["/Applications/阶跃 AI.app", "/Applications/StepFun.app", NSHomeDirectory() + "/Applications/阶跃AI.app"] {
+                        if fm.fileExists(atPath: alt) { path = alt; break }
+                    }
                 }
             }
             
