@@ -72,14 +72,14 @@ public struct PopoverContentView: View {
                     }
                     
                     Button(action: { showCloudSheet.toggle() }) {
-                        HStack(spacing: 3) {
-                            Image(systemName: manager.cloudClient.isLoggedIn ? "cloud.fill" : "cloud")
-                            Text(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? "云控在线" : "云端连接中") : "云控未绑定")
+                        HStack(spacing: 4) {
+                            Image(systemName: manager.cloudClient.isLoggedIn ? "cloud.fill" : "cloud.badge.waveform.fill")
+                            Text(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? "云控在线" : "云端连接中") : "远程云控")
+                                .font(.system(size: 10, weight: .bold))
                         }
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? .green : .orange) : .secondary)
-                        .padding(.horizontal, 6).padding(.vertical, 2.5)
-                        .background(Capsule().fill((manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? Color.green : Color.orange) : Color.gray).opacity(0.12)))
+                        .foregroundColor(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? .green : .orange) : .blue)
+                        .padding(.horizontal, 7).padding(.vertical, 2.5)
+                        .background(Capsule().fill((manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? Color.green : Color.orange) : Color.blue).opacity(0.15)))
                     }
                     .buttonStyle(PlainButtonStyle())
                     .popover(isPresented: $showCloudSheet) {
@@ -128,6 +128,18 @@ public struct PopoverContentView: View {
                 Text(manager.runningCount > 0 ? "已接管 \(manager.runningCount) 款活跃 AI 智能体（实时任务与 Token 探针已就绪）" : "全部智能体处于休眠就绪状态")
                     .font(.system(size: 10)).foregroundColor(.secondary)
             }
+            Spacer()
+            
+            Button(action: { showCloudSheet.toggle() }) {
+                HStack(spacing: 4) {
+                    Image(systemName: manager.cloudClient.isLoggedIn ? "cloud.fill" : "cloud")
+                    Text(manager.cloudClient.isLoggedIn ? "云控: \(manager.cloudClient.userEmail)" : "点击登录/注册远程云控")
+                }
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(manager.cloudClient.isLoggedIn ? .green : .blue)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
             Spacer()
             Text("纯净 Token 统计模式 · 拒绝虚假积分")
                 .font(.system(size: 9)).foregroundColor(.secondary.opacity(0.7))
