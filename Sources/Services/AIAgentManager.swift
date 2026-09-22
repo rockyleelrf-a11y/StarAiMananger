@@ -22,10 +22,31 @@ public final class AIAgentManager: ObservableObject {
         return dir.appendingPathComponent("today_usage.json")
     }()
     
+    public let companionServer = StarButlerCompanionServer.shared
+    
     public init() {
         self.agents = Self.defaultAgents()
         self.loadDailyUsage()
         self.refresh()
+        
+        // Start companion host server for iPhone / iPad
+        self.companionServer.start()
+        self.companionServer.onActionReceived = { [weak self] action, targetId in
+            guard let self = self else { return }
+            switch action {
+            case "terminate":
+                if let targetId = targetId,
+                   let agent = self.agents.first(where: { $0.id == targetId || $0.bundleId == targetId }) {
+                    self.terminateApp(agent)
+                }
+            case "terminateAll":
+                self.terminateAllRunning()
+            case "refresh":
+                self.refresh()
+            default:
+                break
+            }
+        }
         
         // Poll every 2.0 seconds for smooth real-time monitoring
         self.timer = Timer.publish(every: 2.0, on: .main, in: .common)
@@ -195,6 +216,7 @@ public final class AIAgentManager: ObservableObject {
         
         sortAgents()
         saveDailyUsage()
+        companionServer.broadcast(agents: agents)
         lastRefreshedAt = Date()
         NotificationCenter.default.post(name: NSNotification.Name("AIAgentManagerDidRefresh"), object: nil)
     }

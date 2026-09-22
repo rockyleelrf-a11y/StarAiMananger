@@ -1,16 +1,16 @@
-# StarAI Manager
+# StarButler (AI 智能体管家)
 
 <div align="center">
 
-<img src="logo.png" width="120" alt="StarAI Manager Logo">
+<img src="logo.png" width="120" alt="StarButler Logo">
 
-**统一管理你的所有 AI 智能体应用的菜单栏工具**
+**统一管理与监控你所有 AI 智能体应用的全生态管家（Mac 原生 + iOS/iPad 移动伴侣）**
 
 [![macOS](https://img.shields.io/badge/macOS-12.0%2B-blue?logo=apple)](https://github.com/rockyleelrf-a11y/StarAiMananger/releases)
+[![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-16.0%2B-black?logo=apple)](StarButlerCompanion/)
 [![Linux](https://img.shields.io/badge/Linux-AppImage-orange?logo=linux)](https://github.com/rockyleelrf-a11y/StarAiMananger/releases)
 [![Windows](https://img.shields.io/badge/Windows-EXE-0078D4?logo=windows)](https://github.com/rockyleelrf-a11y/StarAiMananger/releases)
 [![Swift](https://img.shields.io/badge/macOS%20Native-Swift%205.9-orange?logo=swift)](Sources/)
-[![Python](https://img.shields.io/badge/Linux%2FWindows-Python%203.11-3776AB?logo=python)](cross-platform/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 </div>
@@ -60,6 +60,26 @@ cd StarAiMananger
 
 ---
 
+### iOS / iPadOS 联动伴侣（StarButler Companion）
+
+采用 **Mac + iOS/iPad 伴侣架构**，Mac 负责本地探活与数据采集，移动端负责实时仪表盘监控、一键远程终止，100% 遵从 iOS App Store 沙盒上架合规规范。
+
+- **极简原生**：采用 Apple 原生 `Network.framework` + Bonjour（`_starbutler._tcp`），零外部依赖。
+- **即开即连**：同一局域网下毫秒级自动握手发现，也可通过 IP 手动配对。
+- **全功能监控**：实时 Token 消耗、吞吐率 T/s、活跃状态、远程单独或批量终止 AI 软件。
+
+#### 运行与编译
+
+```bash
+# 1. 命令行直接编译验证
+swift build --package-path StarButlerCompanion
+
+# 2. 或直接通过 Xcode 打开项目进行 iOS / iPad 真机调试或打包上架
+open StarButlerCompanion/Package.swift
+```
+
+---
+
 ### Linux（Python 系统托盘版）
 
 ```bash
@@ -99,30 +119,43 @@ build_windows.bat
 
 ```
 StarAiMananger/
-├── Sources/                        # macOS 原生 Swift 源码
-│   ├── main.swift                  # 入口点（隐藏 Dock 图标）
-│   ├── AppDelegate.swift           # 菜单栏 NSStatusItem + NSPopover
-│   ├── Models/AIAgentApp.swift     # 智能体数据模型
+├── Sources/                            # macOS 原生 Swift 源码
+│   ├── main.swift                      # 入口点（隐藏 Dock 图标）
+│   ├── AppDelegate.swift               # 菜单栏 NSStatusItem + NSPopover
+│   ├── Models/AIAgentApp.swift         # 智能体数据模型
 │   ├── Services/
-│   │   ├── AIAgentManager.swift    # 进程监控、启停控制、Token 统计
-│   │   └── AIAgentProber.swift     # 各智能体专属探针（SQLite + 日志）
-│   └── Views/AIAgentViews.swift    # SwiftUI 气泡界面
+│   │   ├── AIAgentManager.swift        # 进程监控、启停控制、Token 统计
+│   │   ├── AIAgentProber.swift         # 各智能体专属探针（SQLite + 日志）
+│   │   └── StarButlerCompanionServer.swift # Bonjour 服务端（实时同步给手机/平板）
+│   └── Views/AIAgentViews.swift        # SwiftUI 气泡界面
 │
-├── cross-platform/                 # 跨平台 Python 版（Linux / Windows）
-│   ├── agent_manager.py            # 核心逻辑（进程探测、探针、Token 统计）
-│   ├── main_linux.py               # Linux 系统托盘入口
-│   ├── main_windows.py             # Windows 系统托盘入口
-│   ├── requirements.txt            # Python 依赖
-│   ├── build_linux.sh              # Linux 打包脚本（PyInstaller → AppImage）
-│   └── build_windows.bat           # Windows 打包脚本（PyInstaller → EXE）
+├── StarButlerCompanion/                # iOS / iPadOS 原生伴侣端工程（Swift Package）
+│   ├── Package.swift                   # 支持 iOS 16+ / iPadOS 16+ / macOS 13+
+│   └── Sources/
+│       ├── StarButlerCompanionApp.swift# 移动端应用入口
+│       ├── Models/CompanionAgent.swift # 伴侣端数据与网络协议模型
+│       ├── Services/CompanionClient.swift # Bonjour 探活客户端 + 远程指令
+│       └── Views/
+│           ├── CompanionDashboardView.swift  # 实时仪表盘面板
+│           ├── CompanionAgentCard.swift      # 智能体卡片
+│           └── CompanionConnectionSheet.swift # 局域网主机搜索与连接配置
+│
+├── cross-platform/                     # 跨平台 Python 版（Linux / Windows）
+│   ├── agent_manager.py                # 核心逻辑（进程探测、探针、Token 统计）
+│   ├── main_linux.py                   # Linux 系统托盘入口
+│   ├── main_windows.py                 # Windows 系统托盘入口
+│   ├── requirements.txt                # Python 依赖
+│   ├── build_linux.sh                  # Linux 打包脚本（PyInstaller → AppImage）
+│   └── build_windows.bat               # Windows 打包脚本（PyInstaller → EXE）
 │
 ├── Resources/
-│   ├── Info.plist                  # macOS Bundle 配置
-│   └── AppIcon.icns                # 应用图标（多分辨率）
+│   ├── Info.plist                      # macOS Bundle 配置
+│   └── AppIcon.icns                    # 应用图标（多分辨率）
 │
-├── logo.png                        # 原始 Logo（1024×1024）
-├── build.sh                        # macOS 构建脚本
-├── run_check.swift                 # 自动化断言测试
+├── logo.png                            # 原始 Logo（1024×1024）
+├── build.sh                            # macOS 构建与 DMG 打包脚本
+├── run_check.swift                     # Mac 核心探活与 Token 断言测试
+├── check_companion.swift               # 移动伴侣局域网回环自动化测试
 └── README.md
 ```
 

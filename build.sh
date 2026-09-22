@@ -18,12 +18,26 @@ if [ "$1" == "check" ]; then
     swiftc -module-cache-path "$CACHE_DIR" \
         Sources/Models/AIAgentApp.swift \
         Sources/Services/AIAgentProber.swift \
+        Sources/Services/StarButlerCompanionServer.swift \
         Sources/Services/AIAgentManager.swift \
         run_check.swift \
         -o /tmp/aiagent_check
     /tmp/aiagent_check
     rm -f /tmp/aiagent_check
-    echo "==> Test check passed!"
+
+    echo "==> Running companion network test check..."
+    swiftc -module-cache-path "$CACHE_DIR" \
+        Sources/Models/AIAgentApp.swift \
+        Sources/Services/AIAgentProber.swift \
+        Sources/Services/StarButlerCompanionServer.swift \
+        Sources/Services/AIAgentManager.swift \
+        -parse-as-library \
+        check_companion.swift \
+        -o /tmp/companion_check
+    /tmp/companion_check
+    rm -f /tmp/companion_check
+
+    echo "==> All test checks passed!"
     exit 0
 fi
 
@@ -55,6 +69,7 @@ echo "==> Compiling ${APP_NAME}..."
 swiftc -O -module-cache-path "$CACHE_DIR" \
     Sources/Models/AIAgentApp.swift \
     Sources/Services/AIAgentProber.swift \
+    Sources/Services/StarButlerCompanionServer.swift \
     Sources/Services/AIAgentManager.swift \
     Sources/Views/AIAgentViews.swift \
     Sources/AppDelegate.swift \

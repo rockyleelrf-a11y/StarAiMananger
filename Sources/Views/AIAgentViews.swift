@@ -58,6 +58,17 @@ public struct PopoverContentView: View {
                         .foregroundColor(manager.runningCount > 0 ? .green : .secondary)
                         .padding(.horizontal, 7).padding(.vertical, 2.5)
                         .background(Capsule().fill(manager.runningCount > 0 ? Color.green.opacity(0.12) : Color.gray.opacity(0.12)))
+                    
+                    if manager.companionServer.connectedClientsCount > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "ipad.and.iphone")
+                            Text("\(manager.companionServer.connectedClientsCount) 伴侣在线")
+                        }
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 6).padding(.vertical, 2.5)
+                        .background(Capsule().fill(Color.blue.opacity(0.12)))
+                    }
                 }
                 Text("实时任务探测 · 今日与历史 Token 统计 · 进程调度")
                     .font(.system(size: 10)).foregroundColor(.secondary)
