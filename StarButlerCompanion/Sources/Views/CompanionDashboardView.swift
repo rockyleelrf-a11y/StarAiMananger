@@ -2,8 +2,10 @@ import SwiftUI
 
 public struct CompanionDashboardView: View {
     @ObservedObject var client = CompanionClient.shared
+    @ObservedObject var auth = CompanionAuthManager.shared
     
     @State private var showConnectionSheet = false
+    @State private var showAuthSheet = false
     @State private var showTerminateAllAlert = false
     
     public init() {}
@@ -38,9 +40,12 @@ public struct CompanionDashboardView: View {
                             .padding(.horizontal, 4)
                             
                             ForEach(client.runningAgents) { agent in
-                                CompanionAgentCard(agent: agent) {
-                                    client.terminateAgent(agent)
-                                }
+                                CompanionAgentCard(
+                                    agent: agent,
+                                    onTerminate: { client.terminateAgent(agent) },
+                                    onActivate: { client.activateAgent(agent) },
+                                    onLaunch: { client.launchAgent(agent) }
+                                )
                             }
                         }
                     }
@@ -55,7 +60,12 @@ public struct CompanionDashboardView: View {
                                 .padding(.top, 8)
                             
                             ForEach(client.stoppedAgents) { agent in
-                                CompanionAgentCard(agent: agent) {}
+                                CompanionAgentCard(
+                                    agent: agent,
+                                    onTerminate: { client.terminateAgent(agent) },
+                                    onActivate: { client.activateAgent(agent) },
+                                    onLaunch: { client.launchAgent(agent) }
+                                )
                             }
                         }
                     }
@@ -85,19 +95,28 @@ public struct CompanionDashboardView: View {
                     connectionBadgeButton
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    refreshButton
+                    HStack(spacing: 12) {
+                        refreshButton
+                        userAccountButton
+                    }
                 }
                 #else
                 ToolbarItem(placement: .navigation) {
                     connectionBadgeButton
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    refreshButton
+                    HStack(spacing: 12) {
+                        refreshButton
+                        userAccountButton
+                    }
                 }
                 #endif
             }
             .sheet(isPresented: $showConnectionSheet) {
                 CompanionConnectionSheet()
+            }
+            .sheet(isPresented: $showAuthSheet) {
+                CompanionAuthSheet()
             }
             .alert("确定全部关闭运行中的 AI 软件吗？", isPresented: $showTerminateAllAlert) {
                 Button("全部关闭", role: .destructive) {
@@ -112,16 +131,36 @@ public struct CompanionDashboardView: View {
     
     private var connectionBadgeButton: some View {
         Button(action: { showConnectionSheet = true }) {
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(client.isConnected ? Color.green : Color.orange)
-                    .frame(width: 8, height: 8)
-                Text(client.isConnected ? "已连接" : "未连接")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.primary)
+            HStack(spacing: 5) {
+                if client.isLanConnected {
+                    Circle().fill(Color.green).frame(width: 8, height: 8)
+                    Text("局域网直连")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.primary)
+                } else if client.isCloudConnected {
+                    Image(systemName: "cloud.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.blue)
+                    Text("云端远程")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.blue)
+                } else {
+                    Circle().fill(Color.orange).frame(width: 8, height: 8)
+                    Text("未连接")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(.horizontal, 8).padding(.vertical, 4)
             .background(Capsule().fill(Color.gray.opacity(0.12)))
+        }
+    }
+    
+    private var userAccountButton: some View {
+        Button(action: { showAuthSheet = true }) {
+            Image(systemName: auth.isLoggedIn ? "person.crop.circle.fill" : "person.crop.circle")
+                .font(.system(size: 17))
+                .foregroundColor(auth.isLoggedIn ? .accentColor : .secondary)
         }
     }
     

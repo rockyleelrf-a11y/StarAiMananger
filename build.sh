@@ -19,6 +19,7 @@ if [ "$1" == "check" ]; then
         Sources/Models/AIAgentApp.swift \
         Sources/Services/AIAgentProber.swift \
         Sources/Services/StarButlerCompanionServer.swift \
+        Sources/Services/StarButlerCloudClient.swift \
         Sources/Services/AIAgentManager.swift \
         run_check.swift \
         -o /tmp/aiagent_check
@@ -30,6 +31,7 @@ if [ "$1" == "check" ]; then
         Sources/Models/AIAgentApp.swift \
         Sources/Services/AIAgentProber.swift \
         Sources/Services/StarButlerCompanionServer.swift \
+        Sources/Services/StarButlerCloudClient.swift \
         Sources/Services/AIAgentManager.swift \
         -parse-as-library \
         check_companion.swift \
@@ -70,6 +72,7 @@ swiftc -O -module-cache-path "$CACHE_DIR" \
     Sources/Models/AIAgentApp.swift \
     Sources/Services/AIAgentProber.swift \
     Sources/Services/StarButlerCompanionServer.swift \
+    Sources/Services/StarButlerCloudClient.swift \
     Sources/Services/AIAgentManager.swift \
     Sources/Views/AIAgentViews.swift \
     Sources/AppDelegate.swift \

@@ -50,6 +50,7 @@ public struct CompanionAgent: Identifiable, Codable, Hashable {
     public let todayTokens: Int
     public let historyTokens: Int
     public let tokensPerSec: Int
+    public let iconBase64: String?
     
     public var agentState: CompanionAgentState {
         CompanionAgentState(rawValue: state) ?? (isRunning ? .idle : .stopped)

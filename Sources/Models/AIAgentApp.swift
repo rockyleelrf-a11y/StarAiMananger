@@ -97,6 +97,32 @@ public struct AIAgentApp: Identifiable {
         }
     }
     
+    // Cached base64 icon data for companion clients
+    private static var iconCache: [String: String] = [:]
+    
+    public var iconBase64: String? {
+        if let cached = Self.iconCache[id] {
+            return cached
+        }
+        let targetSize = NSSize(width: 80, height: 80)
+        let img = NSImage(size: targetSize)
+        img.lockFocus()
+        icon.draw(in: NSRect(origin: .zero, size: targetSize),
+                  from: NSRect(origin: .zero, size: icon.size),
+                  operation: .copy,
+                  fraction: 1.0)
+        img.unlockFocus()
+        
+        guard let tiff = img.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else {
+            return nil
+        }
+        let b64 = png.base64EncodedString()
+        Self.iconCache[id] = b64
+        return b64
+    }
+    
     // Formatting helpers
     public var formattedInputTokens: String {
         formatTokenNumber(inputTokens)
