@@ -10,7 +10,7 @@ struct CompanionCheckRunner {
         
         // Wait briefly for listener to enter .ready state
         var waited = 0
-        while !manager.companionServer.isRunning && waited < 40 {
+        while !manager.companionServer.isRunning && waited < 120 {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
             waited += 1
         }
@@ -34,22 +34,28 @@ struct CompanionCheckRunner {
             if case .ready = state {
                 print("  [Pass] Client connected to StarButler Host Server")
                 
-                // Read snapshot
-                connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, error in
-                    if let data = data, !data.isEmpty {
-                        let chunks = data.split(separator: 0x0A)
-                        for chunk in chunks {
-                            if let msg = try? JSONDecoder().decode(CompanionMessage.self, from: chunk) {
-                                if let agents = msg.agents {
-                                    receivedSnapshot = true
-                                    agentCount = agents.count
-                                    print("  [Pass] Received snapshot with \(agents.count) agents from Mac Host")
-                                }
+                // Read snapshot (accumulate until newline)
+                func readStream(buffer: Data) {
+                    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, error in
+                        var buf = buffer
+                        if let data = data { buf.append(data) }
+                        if let idx = buf.firstIndex(of: 0x0A) {
+                            let line = buf.subdata(in: 0..<idx)
+                            if let msg = try? JSONDecoder().decode(CompanionMessage.self, from: line),
+                               let agents = msg.agents {
+                                receivedSnapshot = true
+                                agentCount = agents.count
+                                print("  [Pass] Received snapshot with \(agents.count) agents from Mac Host")
                             }
+                            semaphore.signal()
+                        } else if error != nil {
+                            semaphore.signal()
+                        } else {
+                            readStream(buffer: buf)
                         }
                     }
-                    semaphore.signal()
                 }
+                readStream(buffer: Data())
             }
         }
         

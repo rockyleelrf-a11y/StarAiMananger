@@ -16,6 +16,7 @@ public struct CompanionAgentPayload: Codable, Identifiable {
     public let todayTokens: Int
     public let historyTokens: Int
     public let tokensPerSec: Int
+    public let iconBase64: String?
     
     public init(from agent: AIAgentApp) {
         self.id = agent.id
@@ -32,6 +33,7 @@ public struct CompanionAgentPayload: Codable, Identifiable {
         self.todayTokens = agent.todayTokens
         self.historyTokens = agent.historyTokens
         self.tokensPerSec = agent.tokensPerSec
+        self.iconBase64 = agent.iconBase64
     }
 }
 
@@ -81,23 +83,34 @@ public final class StarButlerCompanionServer: ObservableObject {
             let hostName = Host.current().localizedName ?? "Mac"
             params.serviceClass = .responsiveData
             
-            let nwPort = NWEndpoint.Port(rawValue: preferredPort) ?? .any
+            let nwPort: NWEndpoint.Port = (preferredPort > 0 ? NWEndpoint.Port(rawValue: preferredPort) : nil) ?? .any
             let listener = try NWListener(using: params, on: nwPort)
             listener.service = NWListener.Service(name: "StarButler - \(hostName)", type: "_starbutler._tcp")
             
             listener.stateUpdateHandler = { [weak self] state in
-                DispatchQueue.main.async {
-                    switch state {
-                    case .ready:
-                        self?.isRunning = true
-                        if let actualPort = listener.port?.rawValue {
-                            self?.port = actualPort
-                        }
-                    case .failed, .cancelled:
-                        self?.isRunning = false
-                    default:
-                        break
+                print("[StarButler Host] NWListener stateUpdateHandler: \(state)")
+                switch state {
+                case .ready:
+                    self?.isRunning = true
+                    if let actualPort = listener.port?.rawValue {
+                        self?.port = actualPort
                     }
+                case .failed(let err):
+                    print("[StarButler Host] Listener failed: \(err)")
+                    self?.isRunning = false
+                    if preferredPort > 0 {
+                        print("[StarButler Host] Retrying on any available port...")
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
+                            self?.start(preferredPort: 0)
+                        }
+                    }
+                case .cancelled:
+                    self?.isRunning = false
+                default:
+                    break
+                }
+                DispatchQueue.main.async {
+                    self?.objectWillChange.send()
                 }
             }
             
@@ -113,13 +126,13 @@ public final class StarButlerCompanionServer: ObservableObject {
     }
     
     public func stop() {
+        self.listener?.cancel()
+        self.listener = nil
         queue.async {
             for c in self.connections {
                 c.cancel()
             }
             self.connections.removeAll()
-            self.listener?.cancel()
-            self.listener = nil
             DispatchQueue.main.async {
                 self.isRunning = false
                 self.connectedClientsCount = 0

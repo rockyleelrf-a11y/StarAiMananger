@@ -23,21 +23,34 @@ public final class AIAgentManager: ObservableObject {
     }()
     
     public let companionServer = StarButlerCompanionServer.shared
+    public let cloudClient = StarButlerCloudClient.shared
     
     public init() {
         self.agents = Self.defaultAgents()
         self.loadDailyUsage()
         self.refresh()
         
-        // Start companion host server for iPhone / iPad
-        self.companionServer.start()
-        self.companionServer.onActionReceived = { [weak self] action, targetId in
+        let handleAction: (_ action: String, _ targetId: String?) -> Void = { [weak self] action, targetId in
             guard let self = self else { return }
             switch action {
             case "terminate":
                 if let targetId = targetId,
                    let agent = self.agents.first(where: { $0.id == targetId || $0.bundleId == targetId }) {
                     self.terminateApp(agent)
+                }
+            case "activate":
+                if let targetId = targetId,
+                   let agent = self.agents.first(where: { $0.id == targetId || $0.bundleId == targetId }) {
+                    if agent.isRunning {
+                        self.bringToFront(agent)
+                    } else {
+                        self.launchApp(agent)
+                    }
+                }
+            case "launch":
+                if let targetId = targetId,
+                   let agent = self.agents.first(where: { $0.id == targetId || $0.bundleId == targetId }) {
+                    self.launchApp(agent)
                 }
             case "terminateAll":
                 self.terminateAllRunning()
@@ -47,6 +60,13 @@ public final class AIAgentManager: ObservableObject {
                 break
             }
         }
+        
+        // Start companion host server for iPhone / iPad (LAN Bonjour)
+        self.companionServer.start()
+        self.companionServer.onActionReceived = handleAction
+        
+        // Cloud Relay action listener (WAN Remote)
+        self.cloudClient.onActionReceived = handleAction
         
         // Poll every 2.0 seconds for smooth real-time monitoring
         self.timer = Timer.publish(every: 2.0, on: .main, in: .common)
@@ -217,6 +237,7 @@ public final class AIAgentManager: ObservableObject {
         sortAgents()
         saveDailyUsage()
         companionServer.broadcast(agents: agents)
+        cloudClient.sendSnapshot(agents: agents)
         lastRefreshedAt = Date()
         NotificationCenter.default.post(name: NSNotification.Name("AIAgentManagerDidRefresh"), object: nil)
     }

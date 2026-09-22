@@ -3,6 +3,7 @@ import AppKit
 
 public struct PopoverContentView: View {
     @ObservedObject var manager: AIAgentManager
+    @State private var showCloudSheet = false
     
     public init(manager: AIAgentManager) {
         self.manager = manager
@@ -68,6 +69,21 @@ public struct PopoverContentView: View {
                         .foregroundColor(.blue)
                         .padding(.horizontal, 6).padding(.vertical, 2.5)
                         .background(Capsule().fill(Color.blue.opacity(0.12)))
+                    }
+                    
+                    Button(action: { showCloudSheet.toggle() }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: manager.cloudClient.isLoggedIn ? "cloud.fill" : "cloud")
+                            Text(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? "云控在线" : "云端连接中") : "云控未绑定")
+                        }
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? .green : .orange) : .secondary)
+                        .padding(.horizontal, 6).padding(.vertical, 2.5)
+                        .background(Capsule().fill((manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? Color.green : Color.orange) : Color.gray).opacity(0.12)))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .popover(isPresented: $showCloudSheet) {
+                        MacCloudAccountPopover(cloudClient: manager.cloudClient)
                     }
                 }
                 Text("实时任务探测 · 今日与历史 Token 统计 · 进程调度")
@@ -348,3 +364,172 @@ struct VisualEffectBackground: NSViewRepresentable {
     }
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
+
+// MARK: - Mac Cloud Account Popover
+
+struct MacCloudAccountPopover: View {
+    @ObservedObject var cloudClient: StarButlerCloudClient
+    @State private var email = ""
+    @State private var password = ""
+    @State private var relayUrl = ""
+    @State private var isRegisterMode = false
+    @State private var errorText: String?
+    @State private var successText: String?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: cloudClient.isLoggedIn ? "cloud.fill" : "cloud.badge.waveform.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(cloudClient.isLoggedIn ? .green : .accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("StarButler 广域网云控")
+                        .font(.system(size: 14, weight: .bold))
+                    Text(cloudClient.isLoggedIn ? "已绑定账号，支持 iPhone/iPad 远程控制" : "注册或登录账号，打破局域网限制")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Divider()
+            
+            if cloudClient.isLoggedIn {
+                // Logged in state
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("绑定账号:")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text(cloudClient.userEmail)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    
+                    HStack {
+                        Text("连接状态:")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(cloudClient.isWebSocketConnected ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Text(cloudClient.statusMessage)
+                                .font(.system(size: 11))
+                                .foregroundColor(cloudClient.isWebSocketConnected ? .green : .orange)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("云中继服务器:")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        HStack {
+                            TextField("服务器地址", text: $relayUrl)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .font(.system(size: 11))
+                            Button("保存") {
+                                cloudClient.saveRelayUrl(relayUrl)
+                            }
+                            .font(.system(size: 11))
+                        }
+                    }
+                    .onAppear {
+                        relayUrl = cloudClient.relayServerUrl
+                    }
+                    
+                    HStack(spacing: 12) {
+                        Button("重新连通") {
+                            cloudClient.reconnectWebSocket()
+                        }
+                        .font(.system(size: 12))
+                        
+                        Spacer()
+                        
+                        Button("退出登录") {
+                            cloudClient.logout()
+                        }
+                        .font(.system(size: 12))
+                        .foregroundColor(.red)
+                    }
+                    .padding(.top, 6)
+                }
+            } else {
+                // Auth form
+                Picker("", selection: $isRegisterMode) {
+                    Text("登录已有账号").tag(false)
+                    Text("注册新账号").tag(true)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                
+                VStack(spacing: 8) {
+                    TextField("邮箱账号 (例如 user@example.com)", text: $email)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 12))
+                    
+                    SecureField("密码 (至少 6 位)", text: $password)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 12))
+                    
+                    TextField("云中继地址", text: $relayUrl)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 11))
+                }
+                .onAppear {
+                    relayUrl = cloudClient.relayServerUrl
+                }
+                
+                if let err = errorText {
+                    Text(err)
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                }
+                if let succ = successText {
+                    Text(succ)
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                }
+                
+                Button(action: {
+                    errorText = nil
+                    successText = nil
+                    cloudClient.saveRelayUrl(relayUrl)
+                    if isRegisterMode {
+                        cloudClient.register(email: email, password: password) { result in
+                            switch result {
+                            case .success(let mail):
+                                successText = "注册成功并已登录: \(mail)"
+                            case .failure(let err):
+                                errorText = err.localizedDescription
+                            }
+                        }
+                    } else {
+                        cloudClient.login(email: email, password: password) { result in
+                            switch result {
+                            case .success(let mail):
+                                successText = "登录成功: \(mail)"
+                            case .failure(let err):
+                                errorText = err.localizedDescription
+                            }
+                        }
+                    }
+                }) {
+                    HStack {
+                        Spacer()
+                        if cloudClient.isConnecting {
+                            ProgressView().scaleEffect(0.7)
+                        }
+                        Text(isRegisterMode ? "立即注册并绑定" : "登录并绑定本台 Mac")
+                            .font(.system(size: 12, weight: .semibold))
+                        Spacer()
+                    }
+                    .frame(height: 28)
+                }
+                .disabled(email.isEmpty || password.count < 6 || cloudClient.isConnecting)
+                .buttonStyle(DefaultButtonStyle())
+            }
+        }
+        .padding(16)
+        .frame(width: 320)
+    }
+}
+

@@ -12,8 +12,10 @@ VERSION="1.0.0"
 
 SOURCES=(
     "StarButlerCompanion/Sources/Models/CompanionAgent.swift"
+    "StarButlerCompanion/Sources/Services/CompanionAuthManager.swift"
     "StarButlerCompanion/Sources/Services/CompanionClient.swift"
     "StarButlerCompanion/Sources/Views/CompanionAgentCard.swift"
+    "StarButlerCompanion/Sources/Views/CompanionAuthSheet.swift"
     "StarButlerCompanion/Sources/Views/CompanionConnectionSheet.swift"
     "StarButlerCompanion/Sources/Views/CompanionDashboardView.swift"
     "StarButlerCompanion/Sources/StarButlerCompanionApp.swift"
@@ -98,17 +100,48 @@ generate_app_bundle() {
     <array>
         <string>_starbutler._tcp</string>
     </array>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>AppIcon60x60</string>
+            </array>
+            <key>CFBundleIconName</key>
+            <string>AppIcon</string>
+        </dict>
+    </dict>
+    <key>CFBundleIcons~ipad</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>AppIcon60x60</string>
+                <string>AppIcon76x76</string>
+                <string>AppIcon83.5x83.5</string>
+            </array>
+            <key>CFBundleIconName</key>
+            <string>AppIcon</string>
+        </dict>
+    </dict>
 </dict>
 </plist>
 EOF
 
-    # 3. Generate App Icons from logo.png
+    # 3. Copy App Icons from AppIcon.appiconset and logo.png
+    python3 "$DIR/generate_app_icons.py" >/dev/null 2>&1 || true
+    if [ -d "$DIR/StarButlerCompanion/Assets.xcassets/AppIcon.appiconset" ]; then
+        cp "$DIR/StarButlerCompanion/Assets.xcassets/AppIcon.appiconset/"*.png "$OUT_DIR/"
+    fi
     if [ -f "$DIR/logo.png" ]; then
         sips -z 120 120   "$DIR/logo.png" --out "$OUT_DIR/AppIcon60x60@2x.png" >/dev/null 2>&1 || true
         sips -z 180 180   "$DIR/logo.png" --out "$OUT_DIR/AppIcon60x60@3x.png" >/dev/null 2>&1 || true
         sips -z 152 152   "$DIR/logo.png" --out "$OUT_DIR/AppIcon76x76@2x~ipad.png" >/dev/null 2>&1 || true
         sips -z 167 167   "$DIR/logo.png" --out "$OUT_DIR/AppIcon83.5x83.5@2x~ipad.png" >/dev/null 2>&1 || true
         sips -z 1024 1024 "$DIR/logo.png" --out "$OUT_DIR/AppIcon512@2x.png" >/dev/null 2>&1 || true
+        sips -z 1024 1024 "$DIR/logo.png" --out "$OUT_DIR/AppIcon1024x1024.png" >/dev/null 2>&1 || true
     fi
 
     # 4. Ad-hoc sign for simulator or developer sign for device

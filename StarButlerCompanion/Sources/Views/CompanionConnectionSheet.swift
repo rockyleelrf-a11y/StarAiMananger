@@ -40,6 +40,24 @@ public struct CompanionConnectionSheet: View {
                     .padding(.vertical, 4)
                 }
                 
+                Section(header: Text("广域网云端远程控制 (4G / 5G / 外网)")) {
+                    NavigationLink(destination: CompanionAuthSheet()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "cloud.badge.waveform.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 22))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(CompanionAuthManager.shared.isLoggedIn ? "云端远程控制已绑定" : "注册 / 登录云控账号")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text(CompanionAuthManager.shared.isLoggedIn ? "账号: \(CompanionAuthManager.shared.userEmail) (\(client.isCloudConnected ? "已连通" : "正在连接"))" : "外出无需同一 Wi-Fi，跨互联网实时管理 Mac 智能体")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                
                 Section(header: HStack {
                     Text("局域网发现 (Bonjour)")
                     Spacer()
