@@ -56,7 +56,7 @@ cd StarAiMananger
 ./build.sh dmg
 ```
 
-产物：`build/AI智能体管家.app` 和 `build/AI智能体管家.dmg`
+产物：`build/StarButler.app` 和 `build/StarButler.dmg`
 
 ---
 

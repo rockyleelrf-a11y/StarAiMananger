@@ -5,17 +5,17 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>zh_CN</string>
     <key>CFBundleExecutable</key>
-    <string>AIAgentManager</string>
+    <string>StarButler</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.qysuo.aiagentmanager</string>
+    <string>com.qysuo.starbutler</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>AI智能体管家</string>
+    <string>StarButler</string>
     <key>CFBundleDisplayName</key>
-    <string>AI智能体管家</string>
+    <string>StarButler</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

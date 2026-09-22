@@ -4,7 +4,7 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-APP_NAME="AI智能体管家"
+APP_NAME="StarButler"
 BUNDLE_DIR="$DIR/build/${APP_NAME}.app"
 MACOS_DIR="$BUNDLE_DIR/Contents/MacOS"
 RESOURCES_DIR="$BUNDLE_DIR/Contents/Resources"
@@ -59,7 +59,7 @@ swiftc -O -module-cache-path "$CACHE_DIR" \
     Sources/Views/AIAgentViews.swift \
     Sources/AppDelegate.swift \
     Sources/main.swift \
-    -o "$MACOS_DIR/AIAgentManager"
+    -o "$MACOS_DIR/${APP_NAME}"
 
 # 4. Copy Bundle Resources
 echo "==> Copying Info.plist & AppIcon..."
@@ -70,7 +70,7 @@ fi
 if [ -f "$DIR/logo.png" ]; then
     cp "$DIR/logo.png" "$RESOURCES_DIR/logo.png"
 fi
-chmod +x "$MACOS_DIR/AIAgentManager"
+chmod +x "$MACOS_DIR/${APP_NAME}"
 touch "$BUNDLE_DIR"
 
 echo "==> Build finished successfully: $BUNDLE_DIR"
@@ -83,7 +83,7 @@ if [ "$1" == "dmg" ]; then
     FINAL_DMG="$DMG_DIR/$DMG_NAME"
     STAGING="/tmp/${APP_NAME}_dmg_staging"
     RW_DMG="/tmp/${APP_NAME}_rw.dmg"
-
+    hdiutil detach "/Volumes/${APP_NAME}" -force >/dev/null 2>&1 || true
     rm -rf "$STAGING" "$RW_DMG" "$FINAL_DMG"
     mkdir -p "$STAGING/.background"
 

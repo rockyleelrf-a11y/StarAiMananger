@@ -37,7 +37,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusButton(_ button: NSStatusBarButton) {
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
         let iconName = "sparkles.rectangle.stack.fill"
-        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "AI 智能体管家") {
+        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "StarButler") {
             button.image = image.withSymbolConfiguration(config)
             button.imagePosition = .imageLeading
         }

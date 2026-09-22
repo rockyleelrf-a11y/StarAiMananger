@@ -51,7 +51,7 @@ public struct PopoverContentView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text("AI 智能体控制台")
+                    Text("StarButler")
                         .font(.system(size: 14, weight: .bold))
                     Text("\(manager.runningCount) 个运行中")
                         .font(.system(size: 10, weight: .semibold))
@@ -84,7 +84,7 @@ public struct PopoverContentView: View {
                     .help("一键关闭所有运行中的 AI 软件")
                 }
                 
-                HeaderButton(icon: "power", help: "退出 AI 智能体管家") {
+                HeaderButton(icon: "power", help: "退出 StarButler") {
                     NSApplication.shared.terminate(nil)
                 }
             }
