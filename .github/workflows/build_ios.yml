@@ -64,12 +64,38 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution: Rocky Lee (X8ABB7VJ77)" \
             PROVISIONING_PROFILE="6ff7a3fb-7f8c-43de-8b97-6edb61031a68"
 
-      - name: Export IPA
+      - name: Generate ExportOptions and Export IPA
         run: |
+          cat << 'EOF' > $RUNNER_TEMP/exportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>X8ABB7VJ77</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.starbutler.companion</key>
+                  <string>StarButler AppStore Profile</string>
+              </dict>
+              <key>signingCertificate</key>
+              <string>Apple Distribution</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/StarButlerCompanion.xcarchive" \
             -exportPath "$RUNNER_TEMP/AppStoreExport" \
-            -exportOptionsPlist "build/exportOptionsAppStore.plist"
+            -exportOptionsPlist "$RUNNER_TEMP/exportOptions.plist"
 
       - name: Upload to App Store Connect
         env:
