@@ -199,6 +199,8 @@ server.on('upgrade', (req, socket, head) => {
     socket.write(Buffer.concat([header, payload]));
   }
 
+  socket.sendFrame = sendFrame;
+
   if (role === 'host') {
     hosts[email] = {
       socket,
@@ -207,6 +209,8 @@ server.on('upgrade', (req, socket, head) => {
       lastSeen: Date.now()
     };
     console.log(`[Host Connected] ${email} (${machineName})`);
+    // Send immediate confirmation to host
+    sendFrame(JSON.stringify({ type: 'hostConnected', status: 'ok', email, machineName }));
     
     // Notify clients that host is online
     const clientSet = clients[email];
@@ -218,7 +222,6 @@ server.on('upgrade', (req, socket, head) => {
     }
   } else {
     if (!clients[email]) clients[email] = new Set();
-    socket.sendFrame = sendFrame;
     clients[email].add(socket);
     console.log(`[Client Connected] ${email}`);
 
@@ -245,16 +248,6 @@ server.on('upgrade', (req, socket, head) => {
       let payloadLength = buffer[1] & 0x7F;
       let offset = 2;
 
-      if (opcode === 0x8) { // Close frame
-        socket.end();
-        return;
-      }
-      if (opcode === 0x9) { // Ping
-        socket.write(Buffer.from([0x8A, 0x00])); // Pong
-        buffer = buffer.slice(offset);
-        continue;
-      }
-
       if (payloadLength === 126) {
         if (buffer.length < 4) return;
         payloadLength = buffer.readUInt16BE(2);
@@ -265,19 +258,39 @@ server.on('upgrade', (req, socket, head) => {
         offset = 10;
       }
 
-      let maskKey = null;
+      const maskOffset = offset;
       if (isMasked) {
-        if (buffer.length < offset + 4) return;
-        maskKey = buffer.slice(offset, offset + 4);
         offset += 4;
       }
 
       if (buffer.length < offset + payloadLength) return;
 
-      const payload = buffer.slice(offset, offset + payloadLength);
+      let maskKey = null;
+      if (isMasked) {
+        maskKey = buffer.slice(maskOffset, maskOffset + 4);
+      }
+
+      const rawPayload = buffer.slice(offset, offset + payloadLength);
       buffer = buffer.slice(offset + payloadLength);
 
+      if (opcode === 0x8) { // Close frame
+        socket.end();
+        return;
+      }
+
+      if (opcode === 0x9) { // Ping
+        const pong = Buffer.concat([Buffer.from([0x8A, rawPayload.length]), rawPayload]);
+        socket.write(pong);
+        continue;
+      }
+
+      if (opcode === 0xA) { // Pong
+        continue;
+      }
+
+      let payload = rawPayload;
       if (maskKey) {
+        payload = Buffer.from(rawPayload);
         for (let i = 0; i < payload.length; i++) {
           payload[i] ^= maskKey[i % 4];
         }
@@ -299,18 +312,9 @@ server.on('upgrade', (req, socket, head) => {
         } else {
           // Client sent action: forward directly to host socket
           const host = hosts[email];
-          if (host && host.socket && !host.socket.destroyed) {
+          if (host && host.socket && !host.socket.destroyed && host.socket.sendFrame) {
             try {
-              // Send text frame to host
-              const p = Buffer.from(text, 'utf8');
-              const h = Buffer.from([0x81, p.length < 126 ? p.length : 126]);
-              if (p.length < 126) {
-                host.socket.write(Buffer.concat([h, p]));
-              } else {
-                const ext = Buffer.alloc(4);
-                ext[0] = 0x81; ext[1] = 126; ext.writeUInt16BE(p.length, 2);
-                host.socket.write(Buffer.concat([ext, p]));
-              }
+              host.socket.sendFrame(text);
             } catch (e) {}
           }
         }

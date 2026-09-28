@@ -197,6 +197,16 @@ public final class StarButlerCloudClient: ObservableObject {
         
         self.statusMessage = "正在连接云中继..."
         listenWebSocket()
+        
+        task.sendPing { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if error == nil {
+                    self.isWebSocketConnected = true
+                    self.statusMessage = "云端中继已连通 (远程控制就绪)"
+                }
+            }
+        }
     }
     
     public func disconnectWebSocket() {
@@ -263,6 +273,15 @@ public final class StarButlerCloudClient: ObservableObject {
     private func handleIncomingString(_ text: String) {
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+        
+        // Welcome confirmation
+        if let type = json["type"] as? String, type == "hostConnected" {
+            DispatchQueue.main.async {
+                self.isWebSocketConnected = true
+                self.statusMessage = "云端中继已连通 (远程控制就绪)"
+            }
             return
         }
         

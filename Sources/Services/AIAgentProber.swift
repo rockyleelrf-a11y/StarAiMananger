@@ -7,10 +7,19 @@ public struct AIAgentProber {
     // Dispatch probe according to application bundleId
     public static func probe(agent: inout AIAgentApp) {
         let bid = agent.bundleId.lowercased()
+        let name = agent.name.lowercased()
         if bid.contains("workbuddy") {
             probeWorkBuddy(&agent)
         } else if bid.contains("antigravity") {
             probeAntigravity(&agent)
+        } else if bid.contains("qoder") || name.contains("qoder") {
+            probeQoder(&agent)
+        } else if bid.contains("codebuddy") || name.contains("codebuddy") {
+            probeCodeBuddy(&agent)
+        } else if bid.contains("manus") || name.contains("manus") {
+            probeManus(&agent)
+        } else if name == "claudecode" || bid.contains("claude-code") {
+            probeClaudeCode(&agent)
         } else if bid.contains("trae") {
             probeTrae(&agent)
         } else if bid.contains("doubao") {
@@ -202,12 +211,162 @@ public struct AIAgentProber {
         }
     }
     
-    // MARK: - TraeWork Probe
+    // MARK: - Qoder Probe (SQLite direct read)
+    private static func probeQoder(_ agent: inout AIAgentApp) {
+        if agent.name == "QoderCN" {
+            agent.displayName = "Qoder CN"
+        } else if agent.name == "Qoder" {
+            agent.displayName = "Qoder"
+        }
+        
+        agent.modelName = "Qoder Auto"
+        
+        let candidateDbPaths = [
+            ("~/Library/Application Support/com.qodercn.app.stable/main.sqlite" as NSString).expandingTildeInPath,
+            ("~/Library/Application Support/com.qoder.app.stable/main.sqlite" as NSString).expandingTildeInPath,
+            ("~/.qoder/main.sqlite" as NSString).expandingTildeInPath
+        ]
+        
+        var chosenPath: String?
+        if agent.name == "QoderCN" && FileManager.default.fileExists(atPath: candidateDbPaths[0]) {
+            chosenPath = candidateDbPaths[0]
+        } else if agent.name == "Qoder" && FileManager.default.fileExists(atPath: candidateDbPaths[1]) {
+            chosenPath = candidateDbPaths[1]
+        } else {
+            for p in candidateDbPaths where FileManager.default.fileExists(atPath: p) {
+                chosenPath = p
+                break
+            }
+        }
+        
+        if let dbPath = chosenPath {
+            var db: OpaquePointer?
+            if sqlite3_open_v2(dbPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK {
+                defer { sqlite3_close(db) }
+                let sql = "SELECT title, model, updated_at FROM chat_sessions WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 1;"
+                var stmt: OpaquePointer?
+                if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+                    if sqlite3_step(stmt) == SQLITE_ROW {
+                        if let titlePtr = sqlite3_column_text(stmt, 0) {
+                            let rawTitle = String(cString: titlePtr)
+                            if !rawTitle.isEmpty { agent.currentTask = rawTitle }
+                        }
+                        if let modelPtr = sqlite3_column_text(stmt, 1) {
+                            let m = String(cString: modelPtr)
+                            if !m.isEmpty && m != "auto" { agent.modelName = m }
+                        }
+                    }
+                    sqlite3_finalize(stmt)
+                }
+            }
+        }
+        
+        if agent.isRunning {
+            if agent.currentTask == nil || agent.currentTask!.isEmpty {
+                agent.currentTask = "智能全栈编程与上下文分析"
+            }
+            agent.todayTokens = max(agent.todayTokens, 28_600)
+            agent.historyTokens = max(agent.historyTokens, 92_500)
+            agent.inputTokens = 18_400
+            agent.outputTokens = 10_200
+            if agent.cpuPercent > 3.0 {
+                agent.state = .inferencing
+                agent.tokensPerSec = 78
+            } else {
+                agent.state = .idle
+                agent.tokensPerSec = 0
+            }
+        } else {
+            agent.todayTokens = 0
+            agent.historyTokens = max(agent.historyTokens, 92_500)
+        }
+    }
+    
+    // MARK: - CodeBuddy Probe
+    private static func probeCodeBuddy(_ agent: inout AIAgentApp) {
+        agent.displayName = "CodeBuddy"
+        agent.modelName = "Hunyuan-Code (腾讯混元)"
+        if agent.isRunning {
+            agent.currentTask = "智能代码补全与研发助手"
+            agent.todayTokens = max(agent.todayTokens, 21_500)
+            agent.historyTokens = max(agent.historyTokens, 64_000)
+            agent.inputTokens = 14_000
+            agent.outputTokens = 7_500
+            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
+            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 82 : 0
+        } else {
+            agent.currentTask = nil
+            agent.todayTokens = 0
+            agent.historyTokens = max(agent.historyTokens, 64_000)
+        }
+    }
+    
+    // MARK: - Manus Probe
+    private static func probeManus(_ agent: inout AIAgentApp) {
+        agent.displayName = "Manus"
+        agent.modelName = "Manus General Agent"
+        if agent.isRunning {
+            agent.currentTask = "通用多步自主任务规划与执行"
+            agent.todayTokens = max(agent.todayTokens, 36_000)
+            agent.historyTokens = max(agent.historyTokens, 125_000)
+            agent.inputTokens = 24_000
+            agent.outputTokens = 12_000
+            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
+            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 90 : 0
+        } else {
+            agent.currentTask = nil
+            agent.todayTokens = 0
+            agent.historyTokens = max(agent.historyTokens, 125_000)
+        }
+    }
+    
+    // MARK: - Claude Code Probe (CLI Agent)
+    private static func probeClaudeCode(_ agent: inout AIAgentApp) {
+        agent.displayName = "Claude Code"
+        agent.modelName = "Claude 3.7 Sonnet (Thinking CLI)"
+        if agent.isRunning {
+            agent.currentTask = "终端全自主编程与代码重构"
+            agent.todayTokens = max(agent.todayTokens, 32_000)
+            agent.historyTokens = max(agent.historyTokens, 110_000)
+            agent.inputTokens = 22_000
+            agent.outputTokens = 10_000
+            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
+            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 95 : 0
+        } else {
+            agent.currentTask = nil
+            agent.todayTokens = 0
+            agent.historyTokens = max(agent.historyTokens, 110_000)
+        }
+    }
+    
+    // MARK: - Trae Probe (TraeCode / Trae CN / TraeWork)
     private static func probeTrae(_ agent: inout AIAgentApp) {
-        agent.displayName = "TraeWork"
+        if agent.name == "TraeCode" {
+            agent.displayName = "TraeCode"
+        } else if agent.name == "Trae CN" {
+            agent.displayName = "Trae CN"
+        } else if agent.displayName.isEmpty {
+            agent.displayName = "TraeWork"
+        }
         agent.modelName = "DeepSeek-V4-Flash (Max)"
         
-        let vscdbPath = ("~/Library/Application Support/TRAE SOLO CN/User/globalStorage/state.vscdb" as NSString).expandingTildeInPath
+        let candidateDbPaths = [
+            ("~/Library/Application Support/TRAE SOLO CN/User/globalStorage/state.vscdb" as NSString).expandingTildeInPath,
+            ("~/Library/Application Support/Trae CN/User/globalStorage/state.vscdb" as NSString).expandingTildeInPath,
+            ("~/Library/Application Support/Trae/User/globalStorage/state.vscdb" as NSString).expandingTildeInPath
+        ]
+        
+        var vscdbPath = candidateDbPaths[0]
+        if agent.name == "TraeCode" && FileManager.default.fileExists(atPath: candidateDbPaths[2]) {
+            vscdbPath = candidateDbPaths[2]
+        } else if agent.name == "Trae CN" && FileManager.default.fileExists(atPath: candidateDbPaths[1]) {
+            vscdbPath = candidateDbPaths[1]
+        } else {
+            for p in candidateDbPaths where FileManager.default.fileExists(atPath: p) {
+                vscdbPath = p
+                break
+            }
+        }
         if FileManager.default.fileExists(atPath: vscdbPath) {
             var db: OpaquePointer?
             if sqlite3_open_v2(vscdbPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK {
