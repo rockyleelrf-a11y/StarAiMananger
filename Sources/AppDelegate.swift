@@ -8,6 +8,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var eventMonitor: Any?
     
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        // Automatically ensure cloud relay service is running in background
+        StarButlerCloudRelaySupervisor.shared.ensureRunning()
+        
         // Create the Status Bar Item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -21,7 +24,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let popover = NSPopover()
         popover.contentSize = NSSize(width: 720, height: 560)
         popover.behavior = .transient
-        popover.animates = true
+        popover.animates = false
         popover.contentViewController = NSHostingController(rootView: PopoverContentView(manager: manager))
         self.popover = popover
         
@@ -67,8 +70,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func showPopover(_ sender: NSStatusBarButton) {
-        manager.refresh()
-        updateStatusButton(sender)
+        // Show immediately with cached data (timer refreshes every 2s already)
         popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
         
         // Close popover when clicked outside

@@ -26,7 +26,7 @@ public enum AgentState: String, Codable {
     }
 }
 
-public struct AIAgentApp: Identifiable {
+public struct AIAgentApp: Identifiable, Equatable {
     public let id: String
     public let name: String
     public var displayName: String
@@ -47,7 +47,30 @@ public struct AIAgentApp: Identifiable {
     public var tokensPerSec: Int         // 实时推理吞吐 (T/s)
     public var sortOrder: Int            // 初始排序权重，保证同状态稳定排序
     public var lastProbedTime: Date?
-    public var icon: NSImage
+    public var icon: NSImage {
+        didSet {
+            Self.iconCache.removeValue(forKey: id)
+        }
+    }
+    
+    // Equatable: compare display-relevant fields only (skip icon — NSImage isn't Equatable)
+    public static func == (lhs: AIAgentApp, rhs: AIAgentApp) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.isRunning == rhs.isRunning &&
+        lhs.pid == rhs.pid &&
+        lhs.state == rhs.state &&
+        lhs.displayName == rhs.displayName &&
+        lhs.currentTask == rhs.currentTask &&
+        lhs.modelName == rhs.modelName &&
+        lhs.inputTokens == rhs.inputTokens &&
+        lhs.outputTokens == rhs.outputTokens &&
+        lhs.todayTokens == rhs.todayTokens &&
+        lhs.historyTokens == rhs.historyTokens &&
+        lhs.tokensPerSec == rhs.tokensPerSec
+    }
+    
+    // Static icon cache: load icon once per app path, reuse across refresh cycles
+    private static var appIconCache: [String: NSImage] = [:]
     
     public init(
         id: String,
@@ -90,8 +113,12 @@ public struct AIAgentApp: Identifiable {
         
         if let icon = icon {
             self.icon = icon
+        } else if let cached = Self.appIconCache[appPath] {
+            self.icon = cached
         } else if FileManager.default.fileExists(atPath: appPath) {
-            self.icon = NSWorkspace.shared.icon(forFile: appPath)
+            let loaded = NSWorkspace.shared.icon(forFile: appPath)
+            Self.appIconCache[appPath] = loaded
+            self.icon = loaded
         } else {
             self.icon = NSImage(size: NSSize(width: 40, height: 40))
         }

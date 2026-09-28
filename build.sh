@@ -15,11 +15,12 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$CACHE_DIR"
 # 1. Automated Test Check
 if [ "$1" == "check" ]; then
     echo "==> Running automated test check..."
-    swiftc -module-cache-path "$CACHE_DIR" \
+    swiftc -O -module-cache-path "$CACHE_DIR" \
         Sources/Models/AIAgentApp.swift \
         Sources/Services/AIAgentProber.swift \
         Sources/Services/StarButlerCompanionServer.swift \
         Sources/Services/StarButlerCloudClient.swift \
+        Sources/Services/StarButlerCloudRelaySupervisor.swift \
         Sources/Services/AIAgentManager.swift \
         run_check.swift \
         -o /tmp/aiagent_check
@@ -27,11 +28,12 @@ if [ "$1" == "check" ]; then
     rm -f /tmp/aiagent_check
 
     echo "==> Running companion network test check..."
-    swiftc -module-cache-path "$CACHE_DIR" \
+    swiftc -O -module-cache-path "$CACHE_DIR" \
         Sources/Models/AIAgentApp.swift \
         Sources/Services/AIAgentProber.swift \
         Sources/Services/StarButlerCompanionServer.swift \
         Sources/Services/StarButlerCloudClient.swift \
+        Sources/Services/StarButlerCloudRelaySupervisor.swift \
         Sources/Services/AIAgentManager.swift \
         -parse-as-library \
         check_companion.swift \
@@ -73,6 +75,7 @@ swiftc -O -module-cache-path "$CACHE_DIR" \
     Sources/Services/AIAgentProber.swift \
     Sources/Services/StarButlerCompanionServer.swift \
     Sources/Services/StarButlerCloudClient.swift \
+    Sources/Services/StarButlerCloudRelaySupervisor.swift \
     Sources/Services/AIAgentManager.swift \
     Sources/Views/AIAgentViews.swift \
     Sources/AppDelegate.swift \
@@ -88,28 +91,45 @@ fi
 if [ -f "$DIR/logo.png" ]; then
     cp "$DIR/logo.png" "$RESOURCES_DIR/logo.png"
 fi
+if [ -f "$DIR/cloud-relay/server.cjs" ]; then
+    cp "$DIR/cloud-relay/server.cjs" "$RESOURCES_DIR/server.cjs"
+fi
 chmod +x "$MACOS_DIR/${APP_NAME}"
 touch "$BUNDLE_DIR"
 
 echo "==> Build finished successfully: $BUNDLE_DIR"
 
-# 5. Handle DMG Packaging
+# 5. Handle DMG Packaging + Signing + Notarization
 if [ "$1" == "dmg" ]; then
+    DEV_ID_CERT="Developer ID Application: Rocky Lee (X8ABB7VJ77)"
+    ENTITLEMENTS="$DIR/Resources/StarButler.entitlements"
+    TEAM_ID="X8ABB7VJ77"
+    APPLE_ID="${APPLE_ID:-}"
+    APP_PASSWORD="${APP_PASSWORD:-}"
+
+    # Sign the .app with hardened runtime (required for notarization)
+    echo "==> Code-signing ${APP_NAME}.app with Developer ID (hardened runtime)..."
+    codesign --deep --force --options runtime \
+        --entitlements "$ENTITLEMENTS" \
+        --sign "$DEV_ID_CERT" \
+        "$BUNDLE_DIR"
+    codesign --verify --deep --strict "$BUNDLE_DIR"
+    echo "==> Code signature verified OK."
+
+    # Build DMG
     echo "==> Packaging installable DMG with drag-to-Applications shortcut..."
     DMG_DIR="$DIR/build"
-    DMG_NAME="${APP_NAME}.dmg"
-    FINAL_DMG="$DMG_DIR/$DMG_NAME"
+    FINAL_DMG_NAME="StarButler_v1.0.dmg"
+    FINAL_DMG="$DMG_DIR/$FINAL_DMG_NAME"
     STAGING="/tmp/${APP_NAME}_dmg_staging"
     RW_DMG="/tmp/${APP_NAME}_rw.dmg"
     hdiutil detach "/Volumes/${APP_NAME}" -force >/dev/null 2>&1 || true
     rm -rf "$STAGING" "$RW_DMG" "$FINAL_DMG"
     mkdir -p "$STAGING/.background"
 
-    # Copy App and create Applications symlink
     cp -R "$BUNDLE_DIR" "$STAGING/"
     ln -s /Applications "$STAGING/Applications"
 
-    # Copy background
     if [ -f "$DIR/Resources/dmg_background.tiff" ]; then
         cp "$DIR/Resources/dmg_background.tiff" "$STAGING/.background/dmg_background.tiff"
     fi
@@ -117,24 +137,20 @@ if [ "$1" == "dmg" ]; then
         cp "$DIR/Resources/dmg_background.png" "$STAGING/.background/dmg_background.png"
     fi
 
-    # Create temporary read-write DMG
-    hdiutil create -srcfolder "$STAGING" -volname "${APP_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size 300m "$RW_DMG" >/dev/null
+    hdiutil create -srcfolder "$STAGING" -volname "${APP_NAME}" -fs HFS+ \
+        -fsargs "-c c=64,a=16,e=16" -format UDRW -size 300m "$RW_DMG" >/dev/null
 
-    # Mount temporary DMG
-    MOUNT_POINT=$(hdiutil attach -readwrite -noverify -noautoopen "$RW_DMG" | grep "/Volumes/${APP_NAME}" | awk -F '\t' '{print $NF}')
-    if [ -z "$MOUNT_POINT" ]; then
-        MOUNT_POINT="/Volumes/${APP_NAME}"
-    fi
+    MOUNT_POINT=$(hdiutil attach -readwrite -noverify -noautoopen "$RW_DMG" \
+        | grep "/Volumes/${APP_NAME}" | awk -F '\t' '{print $NF}')
+    [ -z "$MOUNT_POINT" ] && MOUNT_POINT="/Volumes/${APP_NAME}"
 
-    # Set Volume Icon
     if [ -f "$DIR/Resources/AppIcon.icns" ]; then
         cp "$DIR/Resources/AppIcon.icns" "$MOUNT_POINT/.VolumeIcon.icns"
         SetFile -c icnC "$MOUNT_POINT/.VolumeIcon.icns" 2>/dev/null || true
         SetFile -a C "$MOUNT_POINT" 2>/dev/null || true
     fi
 
-    # Configure Finder window layout
-    osascript << APPLESCRIPT
+    osascript <<APPLESCRIPT
 tell application "Finder"
     tell disk "${APP_NAME}"
         open
@@ -160,18 +176,43 @@ tell application "Finder"
 end tell
 APPLESCRIPT
 
-    # Sync and detach
     sync
     hdiutil detach "$MOUNT_POINT" -force >/dev/null 2>&1 || (sleep 2 && hdiutil detach "$MOUNT_POINT" -force >/dev/null 2>&1)
 
-    # Convert to compressed read-only DMG
     echo "==> Compressing final DMG..."
     hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG" >/dev/null
-
     rm -rf "$STAGING" "$RW_DMG"
-    echo "==> DMG successfully created: $FINAL_DMG ($(du -h "$FINAL_DMG" | cut -f1))"
+
+    # Sign the DMG itself
+    echo "==> Signing DMG..."
+    codesign --sign "$DEV_ID_CERT" "$FINAL_DMG"
+    echo "==> DMG created: $FINAL_DMG ($(du -h "$FINAL_DMG" | cut -f1))"
+
+    # Notarization (requires APPLE_ID + APP_PASSWORD env vars)
+    if [ -z "$APPLE_ID" ] || [ -z "$APP_PASSWORD" ]; then
+        echo ""
+        echo "==> Skipping notarization (APPLE_ID / APP_PASSWORD not set)."
+        echo "    To notarize, run:"
+        echo "    APPLE_ID=dongls3000@qq.com APP_PASSWORD=xxxx-xxxx-xxxx-xxxx ./build.sh dmg"
+        exit 0
+    fi
+
+    echo "==> Submitting to Apple Notary Service (takes 1-5 minutes)..."
+    xcrun notarytool submit "$FINAL_DMG" \
+        --apple-id "$APPLE_ID" \
+        --password "$APP_PASSWORD" \
+        --team-id "$TEAM_ID" \
+        --wait
+
+    echo "==> Stapling notarization ticket to DMG..."
+    xcrun stapler staple "$FINAL_DMG"
+    xcrun stapler validate "$FINAL_DMG"
+
+    echo ""
+    echo "✅ Notarized DMG ready: $FINAL_DMG"
     exit 0
 fi
+
 
 # 6. Launch App if requested
 if [ "$1" == "run" ]; then

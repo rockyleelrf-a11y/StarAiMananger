@@ -45,3 +45,11 @@ DerivedData/
 # Logs / temp
 *.log
 *.tmp
+
+# Sensitive Apple Certs / Keys / Profiles
+Apple发布/
+*.key
+*.csr
+*.cer
+*.certSigningRequest
+*.mobileprovision

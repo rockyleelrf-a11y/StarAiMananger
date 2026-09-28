@@ -14,14 +14,13 @@ public struct PopoverContentView: View {
             headerView
             Divider().opacity(0.3)
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 10) {
+                LazyVStack(spacing: 10) {
                     ForEach(manager.agents) { agent in
                         AIAgentCardView(agent: agent, manager: manager)
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: manager.agents.map { "\($0.id)_\($0.isRunning)" })
             }
             .frame(maxHeight: 560)
             Divider().opacity(0.3)
@@ -60,7 +59,7 @@ public struct PopoverContentView: View {
                         .padding(.horizontal, 7).padding(.vertical, 2.5)
                         .background(Capsule().fill(manager.runningCount > 0 ? Color.green.opacity(0.12) : Color.gray.opacity(0.12)))
                     
-                    if manager.companionServer.connectedClientsCount > 0 {
+            if manager.companionServer.connectedClientsCount > 0 {
                         HStack(spacing: 3) {
                             Image(systemName: "ipad.and.iphone")
                             Text("\(manager.companionServer.connectedClientsCount) 伴侣在线")
@@ -70,21 +69,6 @@ public struct PopoverContentView: View {
                         .padding(.horizontal, 6).padding(.vertical, 2.5)
                         .background(Capsule().fill(Color.blue.opacity(0.12)))
                     }
-                    
-                    Button(action: { showCloudSheet.toggle() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: manager.cloudClient.isLoggedIn ? "cloud.fill" : "cloud.badge.waveform.fill")
-                            Text(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? "云控在线" : "云端连接中") : "远程云控")
-                                .font(.system(size: 10, weight: .bold))
-                        }
-                        .foregroundColor(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? .green : .orange) : .blue)
-                        .padding(.horizontal, 7).padding(.vertical, 2.5)
-                        .background(Capsule().fill((manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? Color.green : Color.orange) : Color.blue).opacity(0.15)))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .popover(isPresented: $showCloudSheet) {
-                        MacCloudAccountPopover(cloudClient: manager.cloudClient)
-                    }
                 }
                 Text("实时任务探测 · 今日与历史 Token 统计 · 进程调度")
                     .font(.system(size: 10)).foregroundColor(.secondary)
@@ -93,6 +77,32 @@ public struct PopoverContentView: View {
             Spacer()
             
             HStack(spacing: 8) {
+                // Prominent Cloud Console Entry Button
+                Button(action: { showCloudSheet.toggle() }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? "cloud.fill" : "cloud.badge.waveform.fill") : "cloud.badge.plus")
+                            .font(.system(size: 11))
+                        Text(manager.cloudClient.isLoggedIn ? "远程云控台 (\(manager.cloudClient.isWebSocketConnected ? "在线" : "连接中"))" : "注册/登录云控台")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? .green : .orange) : .blue)
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill((manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? Color.green : Color.orange) : Color.blue).opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke((manager.cloudClient.isLoggedIn ? (manager.cloudClient.isWebSocketConnected ? Color.green : Color.orange) : Color.blue).opacity(0.3), lineWidth: 1)
+                )
+                .popover(isPresented: $showCloudSheet) {
+                    MacCloudAccountPopover(cloudClient: manager.cloudClient)
+                }
+                .help("打开远程云控控制台：登录或注册账号以支持移动端随时随地远程控制")
+                
                 HeaderButton(icon: "arrow.clockwise", help: "重新探测并刷新") { manager.refresh() }
                 
                 if manager.runningCount > 0 {
@@ -131,11 +141,11 @@ public struct PopoverContentView: View {
             Spacer()
             
             Button(action: { showCloudSheet.toggle() }) {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: manager.cloudClient.isLoggedIn ? "cloud.fill" : "cloud")
-                    Text(manager.cloudClient.isLoggedIn ? "云控: \(manager.cloudClient.userEmail)" : "点击登录/注册远程云控")
+                    Text(manager.cloudClient.isLoggedIn ? "云端远程控制: \(manager.cloudClient.userEmail) (点击管理)" : "点击打开【远程云控台】登录/注册")
                 }
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(manager.cloudClient.isLoggedIn ? .green : .blue)
             }
             .buttonStyle(PlainButtonStyle())
@@ -463,7 +473,23 @@ struct MacCloudAccountPopover: View {
                         .font(.system(size: 12))
                         .foregroundColor(.red)
                     }
-                    .padding(.top, 6)
+                    .padding(.top, 4)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "iphone.radiowaves.left.and.right")
+                                .foregroundColor(.blue)
+                            Text("手机远程使用提示")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.blue)
+                        }
+                        Text("在您的 iPhone / iPad 打开 StarButler 伴侣，点击右上角头像登录相同账号（\(cloudClient.userEmail)），即可在外随时随地通过 4G/5G 远程监控、查看活跃任务与一键关闭 Mac 智能体。")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(2)
+                    }
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.08)))
                 }
             } else {
                 // Auth form
