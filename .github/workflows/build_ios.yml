@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       build_number:
-        description: 'Build Number (e.g. 4)'
+        description: 'Build Number (e.g. 5)'
         required: true
-        default: '4'
+        default: '5'
 
 jobs:
   build:
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Select Xcode
+      - name: Select Official Xcode
         run: |
           sudo xcode-select -s /Applications/Xcode.app
           xcodebuild -version
@@ -63,50 +63,6 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution: Rocky Lee (X8ABB7VJ77)" \
             PROVISIONING_PROFILE="6ff7a3fb-7f8c-43de-8b97-6edb61031a68"
-
-      - name: Patch iOS 26 SDK & Resign
-        run: |
-          python3 - << 'EOF'
-          import os, struct, subprocess
-
-          app_path = os.path.expandvars("$RUNNER_TEMP/StarButlerCompanion.xcarchive/Products/Applications/StarButlerCompanion.app")
-          info_plist = os.path.join(app_path, "Info.plist")
-          binary_path = os.path.join(app_path, "StarButlerCompanion")
-
-          plist_mods = [
-              ("DTSDKName", "iphoneos26.0"),
-              ("DTSDKBuild", "26A301"),
-              ("DTPlatformVersion", "26.0"),
-              ("DTPlatformBuild", "26A301"),
-              ("DTXcode", "2600"),
-              ("DTXcodeBuild", "26A301")
-          ]
-
-          for k, v in plist_mods:
-              subprocess.run(["plutil", "-replace", k, "-string", v, info_plist], check=True)
-          print("Updated Info.plist to iOS 26.0 SDK.")
-
-          with open(binary_path, "rb") as f:
-              data = bytearray(f.read())
-
-          needle = struct.pack("<III", 0x32, 0x20, 0x02)
-          idx = data.find(needle)
-          if idx != -1:
-              target_sdk = 26 << 16
-              struct.pack_into("<I", data, idx + 16, target_sdk)
-              with open(binary_path, "wb") as f:
-                  f.write(data)
-              print("Patched Mach-O binary to iOS 26 SDK.")
-          else:
-              print("WARNING: needle not found")
-
-          subprocess.run([
-              "codesign", "--force", "--sign", "Apple Distribution: Rocky Lee (X8ABB7VJ77)",
-              "--entitlements", "StarButlerCompanion/Entitlements.plist",
-              app_path
-          ], check=True)
-          print("Re-signed successfully.")
-          EOF
 
       - name: Generate ExportOptions and Export IPA
         run: |
