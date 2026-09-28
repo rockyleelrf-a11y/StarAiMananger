@@ -1,0 +1,86 @@
+name: Build and Upload to App Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Build Number (e.g. 4)'
+        required: true
+        default: '4'
+
+jobs:
+  build:
+    name: Build & Upload iOS Companion
+    runs-on: macos-14
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Install Apple Distribution Certificate and Profile
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/6ff7a3fb-7f8c-43de-8b97-6edb61031a68.mobileprovision
+
+      - name: Update Build Number
+        run: |
+          BUILD_NUM="${{ github.event.inputs.build_number }}"
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${BUILD_NUM};/g" StarButlerCompanion/StarButlerCompanion.xcodeproj/project.pbxproj
+          echo "Updated CURRENT_PROJECT_VERSION to ${BUILD_NUM}"
+
+      - name: Build Archive
+        run: |
+          xcodebuild archive \
+            -project "StarButlerCompanion/StarButlerCompanion.xcodeproj" \
+            -scheme "StarButlerCompanion" \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/StarButlerCompanion.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution: Rocky Lee (X8ABB7VJ77)" \
+            PROVISIONING_PROFILE="6ff7a3fb-7f8c-43de-8b97-6edb61031a68"
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/StarButlerCompanion.xcarchive" \
+            -exportPath "$RUNNER_TEMP/AppStoreExport" \
+            -exportOptionsPlist "build/exportOptionsAppStore.plist"
+
+      - name: Upload to App Store Connect
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        run: |
+          IPA_PATH="$RUNNER_TEMP/AppStoreExport/StarButlerCompanion.ipa"
+          echo "Uploading $IPA_PATH to App Store Connect..."
+          xcrun altool --upload-app \
+            -f "$IPA_PATH" \
+            -t ios \
+            -u "$APPLE_ID" \
+            -p "$APP_PASSWORD"
+          echo "Upload complete!"
