@@ -101,6 +101,15 @@ public final class StarButlerCloudRelaySupervisor {
                 return expanded
             }
         }
+
+        // nvm installs live under ~/.nvm/versions/node/<version>/bin — pick the newest
+        let nvmVersionsDir = NSString(string: "~/.nvm/versions/node").expandingTildeInPath
+        if let versions = try? fm.contentsOfDirectory(atPath: nvmVersionsDir) {
+            for v in versions.sorted().reversed() {
+                let nodeBin = (nvmVersionsDir as NSString).appendingPathComponent(v) + "/bin/node"
+                if fm.fileExists(atPath: nodeBin) { return nodeBin }
+            }
+        }
         
         // Fallback: which node
         let p = Process()

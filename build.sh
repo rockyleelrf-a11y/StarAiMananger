@@ -150,7 +150,8 @@ if [ "$1" == "dmg" ]; then
         SetFile -a C "$MOUNT_POINT" 2>/dev/null || true
     fi
 
-    osascript <<APPLESCRIPT
+    # Cosmetic Finder layout only — never fail the build if Finder automation is unavailable
+    osascript <<APPLESCRIPT || echo "==> (Finder layout skipped: AppleScript unavailable)"
 tell application "Finder"
     tell disk "${APP_NAME}"
         open
