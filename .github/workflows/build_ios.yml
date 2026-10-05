@@ -113,12 +113,36 @@ jobs:
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
           IPA_PATH="$RUNNER_TEMP/AppStoreExport/StarButlerCompanion.ipa"
           echo "Uploading $IPA_PATH to App Store Connect..."
-          xcrun altool --upload-app \
-            -f "$IPA_PATH" \
-            -t ios \
-            -u "$APPLE_ID" \
-            -p "$APP_PASSWORD"
+
+          # Preferred: App Store Connect API key (create in ASC -> Users and Access -> Integrations;
+          # add ASC_API_KEY_ID / ASC_API_ISSUER_ID secrets and the .p8 as base64 in ASC_API_KEY_P8)
+          mkdir -p ./private_keys
+          if [ -n "$ASC_API_KEY_P8" ]; then
+            echo -n "$ASC_API_KEY_P8" | base64 --decode -o "./private_keys/AuthKey_${ASC_API_KEY_ID}.p8"
+          fi
+
+          if xcrun altool --version >/dev/null 2>&1; then
+            # altool is deprecated but still present on some runners
+            if [ -n "$ASC_API_KEY_P8" ]; then
+              xcrun altool --upload-app -f "$IPA_PATH" -t ios \
+                --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID"
+            else
+              xcrun altool --upload-app -f "$IPA_PATH" -t ios \
+                -u "$APPLE_ID" -p "$APP_PASSWORD"
+            fi
+          else
+            # altool removed on newer Xcode runners — use Apple's Transporter CLI
+            brew install --cask transporter >/dev/null 2>&1
+            /Applications/Transporter.app/Contents/itms/bin/iTMSTransporter -m upload \
+              -assetFile "$IPA_PATH" \
+              -apiIssuer "$ASC_API_ISSUER_ID" \
+              -apiKey "$ASC_API_KEY_ID" \
+              -v eXtreme
+          fi
           echo "Upload complete!"

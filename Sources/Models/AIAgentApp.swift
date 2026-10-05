@@ -120,7 +120,7 @@ public struct AIAgentApp: Identifiable, Equatable {
         } else if let cached = Self.cachedIcon(forPath: appPath) {
             self.icon = cached
         } else if FileManager.default.fileExists(atPath: appPath) {
-            let loaded = NSWorkspace.shared.icon(forFile: appPath)
+            let loaded = Self.workspaceIcon(forPath: appPath)
             Self.storeIcon(loaded, forPath: appPath)
             self.icon = loaded
         } else {
@@ -137,6 +137,18 @@ public struct AIAgentApp: Identifiable, Equatable {
         cacheLock.lock(); defer { cacheLock.unlock() }
         appIconCache[path] = image
     }
+
+    // NSWorkspace isn't documented thread-safe; init/iconBase64 can run on the
+    // refresh or broadcast queues, so route AppKit queries through the main thread
+    private static func workspaceIcon(forPath path: String) -> NSImage {
+        if Thread.isMainThread { return NSWorkspace.shared.icon(forFile: path) }
+        return DispatchQueue.main.sync { NSWorkspace.shared.icon(forFile: path) }
+    }
+
+    private static func workspaceAppURL(forBundleIdentifier bid: String) -> URL? {
+        if Thread.isMainThread { return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) }
+        return DispatchQueue.main.sync { NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) }
+    }
     
     // Cached base64 icon data for companion clients
     private static var iconCache: [String: String] = [:]
@@ -152,9 +164,9 @@ public struct AIAgentApp: Identifiable, Equatable {
         var sourceIcon: NSImage = self.icon
         if sourceIcon.size.width <= 0 || sourceIcon.size.height <= 0 {
             if FileManager.default.fileExists(atPath: appPath) {
-                sourceIcon = NSWorkspace.shared.icon(forFile: appPath)
-            } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                sourceIcon = NSWorkspace.shared.icon(forFile: url.path)
+                sourceIcon = Self.workspaceIcon(forPath: appPath)
+            } else if let url = Self.workspaceAppURL(forBundleIdentifier: bundleId) {
+                sourceIcon = Self.workspaceIcon(forPath: url.path)
             }
         }
         
