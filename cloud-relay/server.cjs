@@ -13,10 +13,12 @@ const PORT = process.env.PORT || 8765;
 const DB_FILE = path.join(__dirname, 'users.json');
 
 // In-memory data store
-let users = {}; // email -> { passwordHash, token, devices: [] }
-let tokens = {}; // token -> email
+let users = {}; // email -> { passwordSalt, passwordHash, token, registeredAt }
+let tokens = {}; // token -> { email, issuedAt }
 let hosts = {}; // email -> { socket, machineName, lastSnapshot, lastSeen }
 let clients = {}; // email -> Set<socket>
+
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 if (fs.existsSync(DB_FILE)) {
   try {
@@ -32,8 +34,39 @@ function saveDB() {
   } catch (e) {}
 }
 
-function hashPassword(pwd) {
-  return crypto.createHash('sha256').update(pwd).digest('hex');
+function hashPassword(pwd, salt) {
+  return crypto.scryptSync(pwd, salt, 64).toString('hex');
+}
+
+function issueToken(email) {
+  const token = crypto.randomBytes(24).toString('hex');
+  tokens[token] = { email, issuedAt: Date.now() };
+  return token;
+}
+
+function resolveToken(token) {
+  const entry = tokens[token];
+  if (!entry) return null;
+  if (Date.now() - entry.issuedAt > TOKEN_TTL_MS) {
+    delete tokens[token];
+    saveDB();
+    return null;
+  }
+  return entry.email;
+}
+
+// Minimal per-IP rate limit for auth endpoints: 10 requests / minute
+const authAttempts = {}; // ip -> { count, resetAt }
+function rateLimited(req) {
+  const ip = req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const rec = authAttempts[ip];
+  if (!rec || now > rec.resetAt) {
+    authAttempts[ip] = { count: 1, resetAt: now + 60_000 };
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > 10;
 }
 
 function parseJSON(req) {
@@ -77,6 +110,9 @@ const server = http.createServer(async (req, res) => {
 
   // 1. User Registration
   if (req.method === 'POST' && url.pathname === '/api/auth/register') {
+    if (rateLimited(req)) {
+      return sendJSON(res, 429, { error: '尝试过于频繁，请稍后再试' });
+    }
     const { email, password } = await parseJSON(req);
     if (!email || !password || email.length < 3 || password.length < 6) {
       return sendJSON(res, 400, { error: '邮箱格式不正确或密码少于6位' });
@@ -85,14 +121,15 @@ const server = http.createServer(async (req, res) => {
     if (users[cleanEmail]) {
       return sendJSON(res, 409, { error: '该账号已存在，请直接登录' });
     }
-    const token = crypto.randomBytes(24).toString('hex');
+    const passwordSalt = crypto.randomBytes(16).toString('hex');
+    const token = issueToken(cleanEmail);
     users[cleanEmail] = {
       email: cleanEmail,
-      passwordHash: hashPassword(password),
+      passwordSalt,
+      passwordHash: hashPassword(password, passwordSalt),
       token,
       registeredAt: Date.now()
     };
-    tokens[token] = cleanEmail;
     saveDB();
     return sendJSON(res, 200, {
       message: '注册成功',
@@ -103,15 +140,35 @@ const server = http.createServer(async (req, res) => {
 
   // 2. User Login
   if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+    if (rateLimited(req)) {
+      return sendJSON(res, 429, { error: '尝试过于频繁，请稍后再试' });
+    }
     const { email, password } = await parseJSON(req);
     const cleanEmail = (email || '').trim().toLowerCase();
     const user = users[cleanEmail];
-    if (!user || user.passwordHash !== hashPassword(password || '')) {
+    let passwordOk = false;
+    if (user) {
+      if (user.passwordSalt) {
+        const expected = Buffer.from(user.passwordHash, 'hex');
+        const actual = Buffer.from(hashPassword(password || '', user.passwordSalt), 'hex');
+        passwordOk = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+      } else {
+        // Legacy unsalted SHA-256 record: verify then upgrade to scrypt
+        const legacy = crypto.createHash('sha256').update(password || '').digest('hex');
+        passwordOk = legacy === user.passwordHash;
+        if (passwordOk) {
+          user.passwordSalt = crypto.randomBytes(16).toString('hex');
+          user.passwordHash = hashPassword(password, user.passwordSalt);
+        }
+      }
+    }
+    if (!passwordOk) {
       return sendJSON(res, 401, { error: '账号或密码错误' });
     }
-    const token = user.token || crypto.randomBytes(24).toString('hex');
+    // Issue a fresh token per login and revoke the previous one
+    if (user.token && tokens[user.token]) delete tokens[user.token];
+    const token = issueToken(cleanEmail);
     user.token = token;
-    tokens[token] = cleanEmail;
     saveDB();
     
     const hostInfo = hosts[cleanEmail];
@@ -128,7 +185,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/device/status') {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.replace(/^Bearer\s+/i, '') || url.searchParams.get('token');
-    const email = tokens[token];
+    const email = resolveToken(token);
     if (!email) {
       return sendJSON(res, 401, { error: '未授权或登录已过期' });
     }
@@ -153,10 +210,12 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
-  const token = url.searchParams.get('token');
+  // Authorization header preferred; query param kept for older clients
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '') || url.searchParams.get('token');
   const role = url.searchParams.get('role'); // "host" or "client"
   const machineName = url.searchParams.get('name') || 'Mac 主机';
-  const email = tokens[token];
+  const email = resolveToken(token);
 
   if (!email) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');

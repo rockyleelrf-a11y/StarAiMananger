@@ -15,8 +15,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(BASE_DIR, "AppStoreScreenshots")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# Sources
-IMG_DIR = "/Users/removed/.gemini/antigravity/brain/15f3c87c-3711-48a4-8433-bbcb3e775719/.user_uploaded"
+# Sources: put raw screenshots in ./screenshot_src/ or point SCREENSHOT_SRC at them
+IMG_DIR = os.environ.get("SCREENSHOT_SRC", os.path.join(BASE_DIR, "screenshot_src"))
 RAW_PHONE_1 = os.path.join(IMG_DIR, "media_1790564561136.png") # Dashboard active (TraeWork, Antigravity, 豆包工作)
 RAW_PHONE_2 = os.path.join(IMG_DIR, "media_1790564561137.png") # Companion Pairing (Bonjour & WAN)
 RAW_PHONE_3 = os.path.join(IMG_DIR, "media_1790564561141.png") # Account & Cloud Control (Cloud Relay)

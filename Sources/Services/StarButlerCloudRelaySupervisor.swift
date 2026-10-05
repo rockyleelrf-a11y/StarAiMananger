@@ -44,8 +44,7 @@ public final class StarButlerCloudRelaySupervisor {
         let candidates = [
             "/usr/local/bin/node",
             "/opt/homebrew/bin/node",
-            "/usr/bin/node",
-            "~/.nvm/versions/node/$(ls ~/.nvm/versions/node 2>/dev/null | tail -n 1)/bin/node"
+            "/usr/bin/node"
         ]
         
         let fm = FileManager.default
@@ -90,16 +89,8 @@ public final class StarButlerCloudRelaySupervisor {
         
         let targetScriptURL = appSupport.appendingPathComponent("server.cjs")
         
-        // Locate bundled or workspace server.cjs
-        var sourceScriptURL: URL?
-        if let bundled = Bundle.main.url(forResource: "server", withExtension: "cjs") {
-            sourceScriptURL = bundled
-        } else {
-            let devPath = "/Users/removed/Documents/CodingProject/Mac 智能AI 软件启动关闭器/cloud-relay/server.cjs"
-            if fm.fileExists(atPath: devPath) {
-                sourceScriptURL = URL(fileURLWithPath: devPath)
-            }
-        }
+        // Locate bundled server.cjs
+        let sourceScriptURL = Bundle.main.url(forResource: "server", withExtension: "cjs")
         
         if let source = sourceScriptURL {
             try? fm.removeItem(at: targetScriptURL)

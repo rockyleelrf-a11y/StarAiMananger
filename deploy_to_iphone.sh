@@ -39,7 +39,13 @@ with open("/tmp/entitlements.plist", "wb") as f:
     plistlib.dump(data["Entitlements"], f)
 ' "$LATEST_PROVISION"
 
-    codesign --force --sign "Apple Development: your_email@example.com (27U66JUTXQ)" \
+    SIGN_ID=$(security find-identity -p codesigning -v | grep -o 'Apple Development: [^"]*' | head -n 1 || true)
+    if [ -z "$SIGN_ID" ]; then
+        echo "⚠️  未找到 Apple Development 签名证书，请先在 Xcode 中登录你的 Apple ID。"
+        exit 1
+    fi
+    echo "==> 使用签名证书: $SIGN_ID"
+    codesign --force --sign "$SIGN_ID" \
         --entitlements /tmp/entitlements.plist \
         --timestamp=none \
         "build/StarButlerCompanion_iphoneos.app"

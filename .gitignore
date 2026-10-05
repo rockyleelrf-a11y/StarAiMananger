@@ -53,3 +53,6 @@ Apple发布/
 *.cer
 *.certSigningRequest
 *.mobileprovision
+
+# Cloud relay runtime DB (never commit user credentials)
+cloud-relay/users.json
