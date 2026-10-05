@@ -3,23 +3,70 @@ import AppKit
 
 public final class StarButlerCloudRelaySupervisor {
     public static let shared = StarButlerCloudRelaySupervisor()
-    
+
     private let port = 8765
     private var childProcess: Process?
-    
+    // 默认 false：后台服务不静默安装，需用户在云控台显式开启
+    private let kRelayEnabledKey = "starbutler_cloud_relay_enabled"
+
     private init() {}
-    
+
+    public var isRelayEnabled: Bool {
+        UserDefaults.standard.bool(forKey: kRelayEnabledKey)
+    }
+
+    public func setRelayEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: kRelayEnabledKey)
+        if enabled {
+            ensureRunning()
+        } else {
+            stopRelayService()
+        }
+    }
+
     public func ensureRunning() {
+        guard isRelayEnabled else {
+            print("[RelaySupervisor] Cloud relay disabled by user; not starting.")
+            return
+        }
         // 1. Check if already responding on port 8765
         checkHealth { [weak self] isRunning in
             if isRunning {
                 print("[RelaySupervisor] Cloud relay service is already running on port 8765.")
                 return
             }
-            
+
             print("[RelaySupervisor] Cloud relay service is not running. Initiating auto-start...")
             self?.startRelayService()
         }
+    }
+
+    private var relayInstallDir: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("StarButler")
+            .appendingPathComponent("cloud-relay")
+    }
+
+    private var relayPlistURL: URL {
+        FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("LaunchAgents")
+            .appendingPathComponent("com.starbutler.cloudrelay.plist")
+    }
+
+    public func stopRelayService() {
+        let launchctl = Process()
+        launchctl.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        launchctl.arguments = ["unload", relayPlistURL.path]
+        try? launchctl.run()
+        launchctl.waitUntilExit()
+
+        try? FileManager.default.removeItem(at: relayPlistURL)
+
+        if let p = childProcess, p.isRunning {
+            p.terminate()
+        }
+        childProcess = nil
+        print("[RelaySupervisor] Cloud relay service stopped and LaunchAgent removed.")
     }
     
     public func checkHealth(completion: @escaping (Bool) -> Void) {
@@ -81,10 +128,8 @@ public final class StarButlerCloudRelaySupervisor {
         }
         
         let fm = FileManager.default
-        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("StarButler")
-            .appendingPathComponent("cloud-relay")
-        
+        let appSupport = relayInstallDir
+
         try? fm.createDirectory(at: appSupport, withIntermediateDirectories: true)
         
         let targetScriptURL = appSupport.appendingPathComponent("server.cjs")
@@ -103,10 +148,9 @@ public final class StarButlerCloudRelaySupervisor {
         }
         
         // 1. Try LaunchAgent registration for permanent background survival
-        let launchAgentsDir = fm.urls(for: .libraryDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("LaunchAgents")
+        let launchAgentsDir = relayPlistURL.deletingLastPathComponent()
         try? fm.createDirectory(at: launchAgentsDir, withIntermediateDirectories: true)
-        let plistURL = launchAgentsDir.appendingPathComponent("com.starbutler.cloudrelay.plist")
+        let plistURL = relayPlistURL
         
         let plistContent = """
         <?xml version="1.0" encoding="UTF-8"?>

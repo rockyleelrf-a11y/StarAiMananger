@@ -405,6 +405,7 @@ struct MacCloudAccountPopover: View {
     @State private var isRegisterMode = false
     @State private var errorText: String?
     @State private var successText: String?
+    @AppStorage("starbutler_cloud_relay_enabled") private var relayServiceEnabled = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -423,7 +424,23 @@ struct MacCloudAccountPopover: View {
             }
             
             Divider()
-            
+
+            // 本机云中继服务开关：默认关闭，需用户显式开启才会安装后台服务
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("在本机运行云中继服务（开机自启）", isOn: $relayServiceEnabled)
+                    .font(.system(size: 12, weight: .medium))
+                    .onChange(of: relayServiceEnabled) { enabled in
+                        StarButlerCloudRelaySupervisor.shared.setRelayEnabled(enabled)
+                    }
+                Text("默认关闭。开启后会在本机注册 launchd 后台服务（com.starbutler.cloudrelay）并监听 8765 端口，供自建云中继使用；关闭即卸载该服务。不影响局域网直连与上方配置的云端地址。")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
             if cloudClient.isLoggedIn {
                 // Logged in state
                 VStack(alignment: .leading, spacing: 10) {

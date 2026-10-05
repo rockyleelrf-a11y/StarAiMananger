@@ -5,12 +5,16 @@
  */
 
 const http = require('http');
+const https = require('https');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 8765;
-const DB_FILE = path.join(__dirname, 'users.json');
+// Runtime DB lives outside the repo by default; override with STARBUTLER_DB
+const DB_FILE = process.env.STARBUTLER_DB || path.join(__dirname, 'users.json');
+// Set TLS_KEY + TLS_CERT (PEM paths) to serve HTTPS/WSS instead of HTTP/WS
+const USE_TLS = !!(process.env.TLS_KEY && process.env.TLS_CERT);
 
 // In-memory data store
 let users = {}; // email -> { passwordSalt, passwordHash, token, registeredAt }
@@ -90,8 +94,8 @@ function sendJSON(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-// HTTP Server
-const server = http.createServer(async (req, res) => {
+// HTTP(S) Request Handler
+async function requestHandler(req, res) {
   if (req.method === 'OPTIONS') {
     res.writeHead(200, {
       'Access-Control-Allow-Origin': '*',
@@ -200,10 +204,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   sendJSON(res, 404, { error: 'Not Found' });
-});
+}
 
 // RFC 6455 Pure Node.js WebSocket Upgrade
-server.on('upgrade', (req, socket, head) => {
+function handleUpgrade(req, socket, head) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (url.pathname !== '/relay') {
     socket.destroy();
@@ -211,8 +215,14 @@ server.on('upgrade', (req, socket, head) => {
   }
 
   // Authorization header preferred; query param kept for older clients
+  // ponytail: query fallback leaks token into access logs — delete it (and the
+  // matching fallback in /api/device/status) once every shipped client sends the header
   const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.replace(/^Bearer\s+/i, '') || url.searchParams.get('token');
+  let token = authHeader.replace(/^Bearer\s+/i, '');
+  if (!token) {
+    token = url.searchParams.get('token') || '';
+    console.warn('[Auth] token via URL query (deprecated) — upgrade the client to send the Authorization header');
+  }
   const role = url.searchParams.get('role'); // "host" or "client"
   const machineName = url.searchParams.get('name') || 'Mac 主机';
   const email = resolveToken(token);
@@ -404,8 +414,14 @@ server.on('upgrade', (req, socket, head) => {
   socket.on('error', () => {
     socket.destroy();
   });
-});
+}
+
+const server = USE_TLS
+  ? https.createServer({ key: fs.readFileSync(process.env.TLS_KEY), cert: fs.readFileSync(process.env.TLS_CERT) }, requestHandler)
+  : http.createServer(requestHandler);
+server.on('upgrade', handleUpgrade);
 
 server.listen(PORT, () => {
-  console.log(`==> StarButler Cloud Relay Server listening on http://0.0.0.0:${PORT}`);
+  const scheme = USE_TLS ? 'https' : 'http';
+  console.log(`==> StarButler Cloud Relay Server listening on ${scheme}://0.0.0.0:${PORT}${USE_TLS ? ' (TLS)' : ''}`);
 });
