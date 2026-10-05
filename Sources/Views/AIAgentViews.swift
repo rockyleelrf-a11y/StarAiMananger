@@ -289,6 +289,14 @@ public struct AIAgentCardView: View {
                         Text("\(agent.formattedTodayTokens) T")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(.orange)
+                        if agent.isDemoData {
+                            Text("演示")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 3)
+                                .padding(.vertical, 1)
+                                .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                        }
                     }
                     .fixedSize()
                     

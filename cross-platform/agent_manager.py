@@ -47,6 +47,7 @@ class AgentApp:
     today_tokens: int = 0
     history_tokens: int = 0
     tokens_per_sec: int = 0
+    is_demo: bool = False   # Token/任务等指标来自演示常量而非真实采集
 
     def fmt_tokens(self, n: int) -> str:
         if n >= 1_000_000:
@@ -202,6 +203,7 @@ def probe_antigravity(agent: AgentApp) -> None:
 
 def probe_trae(agent: AgentApp) -> None:
     agent.display_name = "TraeWork"
+    agent.is_demo = True
     agent.model_name = "DeepSeek-V4-Flash (Max)"
 
     # macOS path; Linux/Windows: adapt if installed
@@ -281,6 +283,7 @@ def probe_workbuddy(agent: AgentApp) -> None:
             agent.current_task = title
         if model:
             agent.model_name = model
+        agent.is_demo = True
         if used and used > 0:
             agent.input_tokens = max(100, int(used * 0.8))
             agent.output_tokens = max(50, int(used * 0.2))
@@ -306,6 +309,7 @@ def probe_workbuddy(agent: AgentApp) -> None:
 
 
 def probe_doubao(agent: AgentApp) -> None:
+    agent.is_demo = True
     agent.model_name = "豆包 2.1 Turbo"
     if agent.is_running:
         agent.current_task = "工作记录与任务进度汇报"
@@ -322,6 +326,7 @@ def probe_doubao(agent: AgentApp) -> None:
 
 def probe_cline(agent: AgentApp) -> None:
     agent.model_name = "Kimi-K3 (Cline)"
+    agent.is_demo = True
     sessions_dir = Path.home() / ".cline/data/sessions"
     if sessions_dir.exists():
         try:
@@ -361,6 +366,7 @@ def probe_cline(agent: AgentApp) -> None:
 
 
 def probe_stepfun(agent: AgentApp) -> None:
+    agent.is_demo = True
     agent.display_name = "阶跃 AI"
     agent.model_name = "Step-2 Pro"
     setting_file = Path.home() / "Library/Application Support/stepfun-desktop/setting.json"

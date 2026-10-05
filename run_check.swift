@@ -76,36 +76,50 @@ struct CheckRunner {
                 assert(!seenStopped, "Running agent '\(agent.displayName)' at index \(i) must not appear after stopped agents! All running agents must be at the top.")
             }
         }
-        // 8. Verify ChatGPT discovery
+        // 8. Verify ChatGPT discovery (environment-dependent: only assert when installed)
+        let chatgptInstalled = FileManager.default.fileExists(atPath: "/Applications/ChatGPT.app")
         if let chatgpt = manager.agents.first(where: { $0.name == "ChatGPT" }) {
             print("  [Pass] ChatGPT discovered: ID=\(chatgpt.bundleId), Running=\(chatgpt.isRunning)")
             assert(!chatgpt.appPath.isEmpty, "ChatGPT appPath must not be empty")
-        } else {
+        } else if chatgptInstalled {
             fatalError("ChatGPT must be discovered if /Applications/ChatGPT.app exists")
+        } else {
+            print("  [Skip] ChatGPT not installed on this machine")
         }
 
-        // 9. Verify Cline Autonomous Agent discovery
+        // 9. Verify Cline Autonomous Agent discovery (environment-dependent)
+        let clineInstalled = ["/Applications/Cline.app",
+                              NSHomeDirectory() + "/Applications/Cline.app"].contains { FileManager.default.fileExists(atPath: $0) }
         if let cline = manager.agents.first(where: { $0.name == "Cline" }) {
             print("  [Pass] Cline discovered: ID=\(cline.bundleId), Model=\(cline.modelName ?? "nil"), Running=\(cline.isRunning)")
             assert(!cline.appPath.isEmpty, "Cline appPath must not be empty")
-        } else {
+        } else if clineInstalled {
             fatalError("Cline must be discovered if /Applications/Cline.app exists")
+        } else {
+            print("  [Skip] Cline not installed on this machine")
         }
 
-        // 10. Verify StepFun (阶跃 AI) discovery
+        // 10. Verify StepFun (阶跃 AI) discovery (environment-dependent)
+        let stepfunInstalled = ["/Applications/阶跃AI.app", "/Applications/阶跃 AI.app", "/Applications/StepFun.app",
+                                NSHomeDirectory() + "/Applications/阶跃AI.app"].contains { FileManager.default.fileExists(atPath: $0) }
         if let stepfun = manager.agents.first(where: { $0.name == "StepFun" }) {
             print("  [Pass] StepFun discovered: Name=\(stepfun.displayName), Model=\(stepfun.modelName ?? "nil"), Running=\(stepfun.isRunning)")
             assert(stepfun.displayName == "阶跃 AI", "StepFun display name should be 阶跃 AI")
-        } else {
+        } else if stepfunInstalled {
             fatalError("StepFun must be discovered if /Applications/阶跃AI.app exists")
+        } else {
+            print("  [Skip] StepFun not installed on this machine")
         }
 
-        // 11. Verify ima.copilot discovery
+        // 11. Verify ima.copilot discovery (environment-dependent)
+        let imaInstalled = FileManager.default.fileExists(atPath: "/Applications/ima.copilot.app")
         if let ima = manager.agents.first(where: { $0.name == "ImaCopilot" }) {
             print("  [Pass] ima.copilot discovered: Name=\(ima.displayName), Running=\(ima.isRunning)")
             assert(ima.displayName == "ima.copilot", "ima.copilot display name should be ima.copilot")
-        } else {
+        } else if imaInstalled {
             fatalError("ima.copilot must be discovered if /Applications/ima.copilot.app exists")
+        } else {
+            print("  [Skip] ima.copilot not installed on this machine")
         }
 
         print("[Check] All pure Token, model ID, real task, priority sorting, Cline, StepFun, and ChatGPT assertions passed successfully!")

@@ -51,6 +51,7 @@ public struct CompanionAgent: Identifiable, Codable, Hashable {
     public let historyTokens: Int
     public let tokensPerSec: Int
     public let iconBase64: String?
+    public let isDemoData: Bool?  // Optional: absent in payloads from older hosts
     
     public var agentState: CompanionAgentState {
         CompanionAgentState(rawValue: state) ?? (isRunning ? .idle : .stopped)

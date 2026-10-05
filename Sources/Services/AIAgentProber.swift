@@ -15,11 +15,11 @@ public struct AIAgentProber {
         } else if bid.contains("qoder") || name.contains("qoder") {
             probeQoder(&agent)
         } else if bid.contains("codebuddy") || name.contains("codebuddy") {
-            probeCodeBuddy(&agent)
+            probeDemo(&agent, key: "codebuddy")
         } else if bid.contains("manus") || name.contains("manus") {
-            probeManus(&agent)
+            probeDemo(&agent, key: "manus")
         } else if name == "claudecode" || bid.contains("claude-code") {
-            probeClaudeCode(&agent)
+            probeDemo(&agent, key: "claudecode")
         } else if bid.contains("trae") {
             probeTrae(&agent)
         } else if bid.contains("doubao") {
@@ -29,36 +29,77 @@ public struct AIAgentProber {
         } else if bid.contains("stepfun") {
             probeStepFun(&agent)
         } else if bid.contains("imamac") || bid.contains("imacopilot") || bid.contains("ima.copilot") {
-            probeImaCopilot(&agent)
+            probeDemo(&agent, key: "imacopilot")
         } else if bid.contains("cursor") {
-            probeCursor(&agent)
+            probeDemo(&agent, key: "cursor")
         } else if bid.contains("windsurf") {
-            probeWindsurf(&agent)
+            probeDemo(&agent, key: "windsurf")
         } else if bid.contains("claude") {
-            probeClaude(&agent)
+            probeDemo(&agent, key: "claude")
         } else if bid.contains("kimi") {
-            probeKimi(&agent)
+            probeDemo(&agent, key: "kimi")
         } else if bid.contains("ollama") {
-            probeOllama(&agent)
+            probeDemo(&agent, key: "ollama")
         } else if bid.contains("lmstudio") {
-            probeLMStudio(&agent)
+            probeDemo(&agent, key: "lmstudio")
         } else if bid.contains("goose") {
-            probeGoose(&agent)
+            probeDemo(&agent, key: "goose")
         } else if bid.contains("starwriter") {
-            probeStarWriter(&agent)
+            probeDemo(&agent, key: "starwriter")
         } else if bid.contains("minimax") {
-            probeMiniMax(&agent)
+            probeDemo(&agent, key: "minimax")
         } else if bid.contains("zcode") {
-            probeZCode(&agent)
+            probeDemo(&agent, key: "zcode")
         } else if bid.contains("codex") || bid.contains("openai") || bid.contains("chatgpt") {
-            probeChatGPT(&agent)
+            probeDemo(&agent, key: "chatgpt")
         } else if bid.contains("opencode") {
-            probeOpenCode(&agent)
+            probeDemo(&agent, key: "opencode")
         } else {
             probeGeneral(&agent)
         }
     }
     
+    // MARK: - Canned Demo Probes
+    // 演示口径：下列模型/任务/Token 数字为示意常量，并非真实采集，UI 端以 isDemoData 标注。
+    private static let demoCatalog: [String: (model: String, task: String, today: Int, history: Int, input: Int, output: Int, tps: Int)] = [
+        "codebuddy":  ("Hunyuan-Code (腾讯混元)", "智能代码补全与研发助手", 21_500, 64_000, 14_000, 7_500, 82),
+        "manus":      ("Manus General Agent", "通用多步自主任务规划与执行", 36_000, 125_000, 24_000, 12_000, 90),
+        "claudecode": ("Claude 3.7 Sonnet (Thinking CLI)", "终端全自主编程与代码重构", 32_000, 110_000, 22_000, 10_000, 95),
+        "minimax":    ("MiniMax-ABAB 6.5", "智能代码补全与专家问答", 12_300, 98_400, 9_200, 3_100, 95),
+        "zcode":      ("ZCode-Core", "本地代码分析与工程构建", 18_500, 45_000, 12_000, 6_500, 0),
+        "chatgpt":    ("GPT-4o mini", "对话问答与推理助手", 22_000, 62_000, 14_000, 8_000, 0),
+        "opencode":   ("DeepSeek-Coder", "智能终端调度助手", 8_000, 15_000, 5_000, 3_000, 0),
+        "imacopilot": ("腾讯混元 (ima 智能体)", "知识库问答与深度搜索", 19_400, 78_000, 15_000, 4_400, 72),
+        "cursor":     ("Claude 3.5 Sonnet", "Cursor Agent 代码生成与实时审查", 55_000, 310_000, 38_000, 17_000, 92),
+        "windsurf":   ("Cascade (Flows)", "Cascade 多文件实时协同编码", 42_000, 190_000, 29_000, 13_000, 86),
+        "claude":     ("Claude 3.7 Sonnet (Thinking)", "深度推理与 Artifacts 实时交互", 38_000, 165_000, 24_000, 14_000, 80),
+        "kimi":       ("Kimi k1.5 (Moonshot)", "超长上下文推理与深度全网检索", 28_000, 95_000, 20_000, 8_000, 70),
+        "ollama":     ("Llama 3.3 / Qwen 2.5", "本地私有化大模型推理引擎", 15_000, 85_000, 10_000, 5_000, 65),
+        "lmstudio":   ("Local Model Studio", "本地多模型工作台与推理调度", 16_000, 72_000, 11_000, 5_000, 0),
+        "goose":      ("Goose Autonomous Agent", "自主多工具调用智能体执行", 14_000, 45_000, 9_500, 4_500, 0),
+        "starwriter": ("StarWriter Agent (Trae)", "AI 文章智能创作与自适应排版", 21_000, 64_000, 13_000, 8_000, 0)
+    ]
+
+    private static func probeDemo(_ agent: inout AIAgentApp, key: String) {
+        guard let d = demoCatalog[key] else { probeGeneral(&agent); return }
+        agent.isDemoData = true
+        agent.modelName = d.model
+        if agent.isRunning {
+            agent.currentTask = d.task
+            agent.todayTokens = max(agent.todayTokens, d.today)
+            agent.historyTokens = max(agent.historyTokens, d.history)
+            agent.inputTokens = d.input
+            agent.outputTokens = d.output
+            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
+            agent.tokensPerSec = agent.cpuPercent > 3.0 ? d.tps : 0
+        } else {
+            agent.currentTask = nil
+            agent.todayTokens = 0
+            agent.historyTokens = max(agent.historyTokens, d.history)
+            agent.tokensPerSec = 0
+        }
+    }
+
     // MARK: - WorkBuddy Probe (SQLite direct read)
     private static func probeWorkBuddy(_ agent: inout AIAgentApp) {
         let dbPath = ("~/.workbuddy/workbuddy.db" as NSString).expandingTildeInPath
@@ -219,6 +260,7 @@ public struct AIAgentProber {
             agent.displayName = "Qoder"
         }
         
+        agent.isDemoData = true
         agent.modelName = "Qoder Auto"
         
         let candidateDbPaths = [
@@ -282,63 +324,6 @@ public struct AIAgentProber {
         }
     }
     
-    // MARK: - CodeBuddy Probe
-    private static func probeCodeBuddy(_ agent: inout AIAgentApp) {
-        agent.displayName = "CodeBuddy"
-        agent.modelName = "Hunyuan-Code (腾讯混元)"
-        if agent.isRunning {
-            agent.currentTask = "智能代码补全与研发助手"
-            agent.todayTokens = max(agent.todayTokens, 21_500)
-            agent.historyTokens = max(agent.historyTokens, 64_000)
-            agent.inputTokens = 14_000
-            agent.outputTokens = 7_500
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 82 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 64_000)
-        }
-    }
-    
-    // MARK: - Manus Probe
-    private static func probeManus(_ agent: inout AIAgentApp) {
-        agent.displayName = "Manus"
-        agent.modelName = "Manus General Agent"
-        if agent.isRunning {
-            agent.currentTask = "通用多步自主任务规划与执行"
-            agent.todayTokens = max(agent.todayTokens, 36_000)
-            agent.historyTokens = max(agent.historyTokens, 125_000)
-            agent.inputTokens = 24_000
-            agent.outputTokens = 12_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 90 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 125_000)
-        }
-    }
-    
-    // MARK: - Claude Code Probe (CLI Agent)
-    private static func probeClaudeCode(_ agent: inout AIAgentApp) {
-        agent.displayName = "Claude Code"
-        agent.modelName = "Claude 3.7 Sonnet (Thinking CLI)"
-        if agent.isRunning {
-            agent.currentTask = "终端全自主编程与代码重构"
-            agent.todayTokens = max(agent.todayTokens, 32_000)
-            agent.historyTokens = max(agent.historyTokens, 110_000)
-            agent.inputTokens = 22_000
-            agent.outputTokens = 10_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 95 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 110_000)
-        }
-    }
-    
     // MARK: - Trae Probe (TraeCode / Trae CN / TraeWork)
     private static func probeTrae(_ agent: inout AIAgentApp) {
         if agent.name == "TraeCode" {
@@ -348,6 +333,7 @@ public struct AIAgentProber {
         } else if agent.displayName.isEmpty {
             agent.displayName = "TraeWork"
         }
+        agent.isDemoData = true
         agent.modelName = "DeepSeek-V4-Flash (Max)"
         
         let candidateDbPaths = [
@@ -476,6 +462,7 @@ public struct AIAgentProber {
     
     // MARK: - DoubaoWork Probe
     private static func probeDoubao(_ agent: inout AIAgentApp) {
+        agent.isDemoData = true
         agent.modelName = "豆包 2.1 Turbo"
         
         if agent.isRunning {
@@ -515,89 +502,10 @@ public struct AIAgentProber {
         }
     }
     
-    // MARK: - MiniMax Code Probe
-    private static func probeMiniMax(_ agent: inout AIAgentApp) {
-        agent.modelName = "MiniMax-ABAB 6.5"
-        
-        if agent.isRunning {
-            agent.currentTask = "智能代码补全与专家问答"
-            agent.todayTokens = max(agent.todayTokens, 12_300)
-            agent.historyTokens = max(agent.historyTokens, 98_400)
-            agent.inputTokens = 9_200
-            agent.outputTokens = 3_100
-            
-            if agent.cpuPercent > 3.0 {
-                agent.state = .inferencing
-                agent.tokensPerSec = 95
-            } else {
-                agent.state = .idle
-                agent.tokensPerSec = 0
-            }
-        } else {
-            agent.currentTask = nil
-            agent.tokensPerSec = 0
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 98_400)
-        }
-    }
-    
-    // MARK: - ZCode Probe
-    private static func probeZCode(_ agent: inout AIAgentApp) {
-        agent.modelName = "ZCode-Core"
-        
-        if agent.isRunning {
-            agent.currentTask = "本地代码分析与工程构建"
-            agent.todayTokens = max(agent.todayTokens, 18_500)
-            agent.historyTokens = max(agent.historyTokens, 45_000)
-            agent.inputTokens = 12_000
-            agent.outputTokens = 6_500
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 45_000)
-        }
-    }
-    
-    // MARK: - ChatGPT Probe
-    private static func probeChatGPT(_ agent: inout AIAgentApp) {
-        agent.modelName = "GPT-4o mini"
-        
-        if agent.isRunning {
-            agent.currentTask = "对话问答与推理助手"
-            agent.todayTokens = max(agent.todayTokens, 22_000)
-            agent.historyTokens = max(agent.historyTokens, 62_000)
-            agent.inputTokens = 14_000
-            agent.outputTokens = 8_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 62_000)
-        }
-    }
-    
-    // MARK: - OpenCode Probe
-    private static func probeOpenCode(_ agent: inout AIAgentApp) {
-        agent.modelName = "DeepSeek-Coder"
-        
-        if agent.isRunning {
-            agent.currentTask = "智能终端调度助手"
-            agent.todayTokens = max(agent.todayTokens, 8_000)
-            agent.historyTokens = max(agent.historyTokens, 15_000)
-            agent.inputTokens = 5_000
-            agent.outputTokens = 3_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 15_000)
-        }
-    }
-    
     // MARK: - Cline Autonomous Agent Probe
     private static func probeCline(_ agent: inout AIAgentApp) {
         agent.displayName = "Cline"
+        agent.isDemoData = true
         agent.modelName = "Kimi-K3 (Cline)"
         
         let sessionsDir = ("~/.cline/data/sessions" as NSString).expandingTildeInPath
@@ -670,6 +578,7 @@ public struct AIAgentProber {
     // MARK: - StepFun (阶跃 AI) Probe
     private static func probeStepFun(_ agent: inout AIAgentApp) {
         agent.displayName = "阶跃 AI"
+        agent.isDemoData = true
         agent.modelName = "Step-2 Pro"
         
         let settingPath = ("~/Library/Application Support/stepfun-desktop/setting.json" as NSString).expandingTildeInPath
@@ -720,176 +629,6 @@ public struct AIAgentProber {
         }
     }
     
-    // MARK: - ima.copilot Probe
-    private static func probeImaCopilot(_ agent: inout AIAgentApp) {
-        agent.displayName = "ima.copilot"
-        agent.modelName = "腾讯混元 (ima 智能体)"
-        
-        if agent.isRunning {
-            agent.currentTask = "知识库问答与深度搜索"
-            agent.todayTokens = max(agent.todayTokens, 19_400)
-            agent.historyTokens = max(agent.historyTokens, 78_000)
-            agent.inputTokens = 15_000
-            agent.outputTokens = 4_400
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 72 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 78_000)
-            agent.tokensPerSec = 0
-        }
-    }
-    
-    // MARK: - Cursor Probe
-    private static func probeCursor(_ agent: inout AIAgentApp) {
-        agent.displayName = "Cursor"
-        agent.modelName = "Claude 3.5 Sonnet"
-        if agent.isRunning {
-            agent.currentTask = "Cursor Agent 代码生成与实时审查"
-            agent.todayTokens = max(agent.todayTokens, 55_000)
-            agent.historyTokens = max(agent.historyTokens, 310_000)
-            agent.inputTokens = 38_000
-            agent.outputTokens = 17_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 92 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 310_000)
-        }
-    }
-    
-    // MARK: - Windsurf Probe
-    private static func probeWindsurf(_ agent: inout AIAgentApp) {
-        agent.displayName = "Windsurf"
-        agent.modelName = "Cascade (Flows)"
-        if agent.isRunning {
-            agent.currentTask = "Cascade 多文件实时协同编码"
-            agent.todayTokens = max(agent.todayTokens, 42_000)
-            agent.historyTokens = max(agent.historyTokens, 190_000)
-            agent.inputTokens = 29_000
-            agent.outputTokens = 13_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 86 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 190_000)
-        }
-    }
-    
-    // MARK: - Claude Probe
-    private static func probeClaude(_ agent: inout AIAgentApp) {
-        agent.displayName = "Claude"
-        agent.modelName = "Claude 3.7 Sonnet (Thinking)"
-        if agent.isRunning {
-            agent.currentTask = "深度推理与 Artifacts 实时交互"
-            agent.todayTokens = max(agent.todayTokens, 38_000)
-            agent.historyTokens = max(agent.historyTokens, 165_000)
-            agent.inputTokens = 24_000
-            agent.outputTokens = 14_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 80 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 165_000)
-        }
-    }
-    
-    // MARK: - Kimi Probe
-    private static func probeKimi(_ agent: inout AIAgentApp) {
-        agent.displayName = "Kimi"
-        agent.modelName = "Kimi k1.5 (Moonshot)"
-        if agent.isRunning {
-            agent.currentTask = "超长上下文推理与深度全网检索"
-            agent.todayTokens = max(agent.todayTokens, 28_000)
-            agent.historyTokens = max(agent.historyTokens, 95_000)
-            agent.inputTokens = 20_000
-            agent.outputTokens = 8_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 70 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 95_000)
-        }
-    }
-    
-    // MARK: - Ollama Probe
-    private static func probeOllama(_ agent: inout AIAgentApp) {
-        agent.displayName = "Ollama"
-        agent.modelName = "Llama 3.3 / Qwen 2.5"
-        if agent.isRunning {
-            agent.currentTask = "本地私有化大模型推理引擎"
-            agent.todayTokens = max(agent.todayTokens, 15_000)
-            agent.historyTokens = max(agent.historyTokens, 85_000)
-            agent.inputTokens = 10_000
-            agent.outputTokens = 5_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-            agent.tokensPerSec = agent.cpuPercent > 3.0 ? 65 : 0
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 85_000)
-        }
-    }
-    
-    // MARK: - LM Studio Probe
-    private static func probeLMStudio(_ agent: inout AIAgentApp) {
-        agent.displayName = "LM Studio"
-        agent.modelName = "Local Model Studio"
-        if agent.isRunning {
-            agent.currentTask = "本地多模型工作台与推理调度"
-            agent.todayTokens = max(agent.todayTokens, 16_000)
-            agent.historyTokens = max(agent.historyTokens, 72_000)
-            agent.inputTokens = 11_000
-            agent.outputTokens = 5_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 72_000)
-        }
-    }
-    
-    // MARK: - Goose Probe
-    private static func probeGoose(_ agent: inout AIAgentApp) {
-        agent.displayName = "Goose"
-        agent.modelName = "Goose Autonomous Agent"
-        if agent.isRunning {
-            agent.currentTask = "自主多工具调用智能体执行"
-            agent.todayTokens = max(agent.todayTokens, 14_000)
-            agent.historyTokens = max(agent.historyTokens, 45_000)
-            agent.inputTokens = 9_500
-            agent.outputTokens = 4_500
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 45_000)
-        }
-    }
-    
-    // MARK: - StarWriter Probe
-    private static func probeStarWriter(_ agent: inout AIAgentApp) {
-        agent.displayName = "StarWriter"
-        agent.modelName = "StarWriter Agent (Trae)"
-        if agent.isRunning {
-            agent.currentTask = "AI 文章智能创作与自适应排版"
-            agent.todayTokens = max(agent.todayTokens, 21_000)
-            agent.historyTokens = max(agent.historyTokens, 64_000)
-            agent.inputTokens = 13_000
-            agent.outputTokens = 8_000
-            agent.state = agent.cpuPercent > 3.0 ? .inferencing : .idle
-        } else {
-            agent.currentTask = nil
-            agent.todayTokens = 0
-            agent.historyTokens = max(agent.historyTokens, 64_000)
-        }
-    }
-
     // Fallback general probe
     private static func probeGeneral(_ agent: inout AIAgentApp) {
         if agent.isRunning {

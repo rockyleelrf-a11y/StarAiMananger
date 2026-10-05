@@ -47,12 +47,13 @@ public struct AIAgentApp: Identifiable, Equatable {
     public var tokensPerSec: Int         // 实时推理吞吐 (T/s)
     public var sortOrder: Int            // 初始排序权重，保证同状态稳定排序
     public var lastProbedTime: Date?
+    public var isDemoData: Bool = false  // Token/任务等指标来自演示常量而非真实采集
     public var icon: NSImage {
         didSet {
             Self.iconCache.removeValue(forKey: id)
         }
     }
-    
+
     // Equatable: compare display-relevant fields only (skip icon — NSImage isn't Equatable)
     public static func == (lhs: AIAgentApp, rhs: AIAgentApp) -> Bool {
         lhs.id == rhs.id &&
@@ -66,11 +67,14 @@ public struct AIAgentApp: Identifiable, Equatable {
         lhs.outputTokens == rhs.outputTokens &&
         lhs.todayTokens == rhs.todayTokens &&
         lhs.historyTokens == rhs.historyTokens &&
-        lhs.tokensPerSec == rhs.tokensPerSec
+        lhs.tokensPerSec == rhs.tokensPerSec &&
+        lhs.isDemoData == rhs.isDemoData
     }
-    
+
     // Static icon cache: load icon once per app path, reuse across refresh cycles
     private static var appIconCache: [String: NSImage] = [:]
+    // Guards both static caches: init/iconBase64 run on main and refresh background queues
+    private static let cacheLock = NSLock()
     
     public init(
         id: String,
@@ -113,22 +117,35 @@ public struct AIAgentApp: Identifiable, Equatable {
         
         if let icon = icon {
             self.icon = icon
-        } else if let cached = Self.appIconCache[appPath] {
+        } else if let cached = Self.cachedIcon(forPath: appPath) {
             self.icon = cached
         } else if FileManager.default.fileExists(atPath: appPath) {
             let loaded = NSWorkspace.shared.icon(forFile: appPath)
-            Self.appIconCache[appPath] = loaded
+            Self.storeIcon(loaded, forPath: appPath)
             self.icon = loaded
         } else {
             self.icon = NSImage(size: NSSize(width: 40, height: 40))
         }
+    }
+
+    private static func cachedIcon(forPath path: String) -> NSImage? {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        return appIconCache[path]
+    }
+
+    private static func storeIcon(_ image: NSImage, forPath path: String) {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        appIconCache[path] = image
     }
     
     // Cached base64 icon data for companion clients
     private static var iconCache: [String: String] = [:]
     
     public var iconBase64: String? {
-        if let cached = Self.iconCache[id], !cached.isEmpty {
+        Self.cacheLock.lock()
+        let cached = Self.iconCache[id]
+        Self.cacheLock.unlock()
+        if let cached, !cached.isEmpty {
             return cached
         }
         
@@ -159,7 +176,9 @@ public struct AIAgentApp: Identifiable, Equatable {
         let imgData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) ?? rep.representation(using: .png, properties: [:])
         guard let data = imgData else { return nil }
         let b64 = data.base64EncodedString()
+        Self.cacheLock.lock()
         Self.iconCache[id] = b64
+        Self.cacheLock.unlock()
         return b64
     }
     

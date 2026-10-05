@@ -295,7 +295,7 @@ public final class AIAgentManager: ObservableObject {
         isRefreshing = true
         
         // Snapshot existing data before going off main thread
-        let existingMap = Dictionary(uniqueKeysWithValues: agents.map { ($0.name, $0) })
+        let existingMap = Dictionary(agents.map { ($0.name, $0) }, uniquingKeysWith: { a, _ in a })
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
@@ -318,7 +318,8 @@ public final class AIAgentManager: ObservableObject {
                     agent.tokensPerSec = existing.tokensPerSec
                     agent.inputTokens = existing.inputTokens
                     agent.outputTokens = existing.outputTokens
-                    agent.icon = existing.icon
+                    // icon intentionally not copied: AIAgentApp.init already restores it
+                    // from the static appIconCache; reassigning would clear iconBase64 cache
                 }
                 updatedAgents.append(agent)
             }
@@ -347,7 +348,8 @@ public final class AIAgentManager: ObservableObject {
                     updatedAgents[i].pid = app.processIdentifier
                     updatedAgents[i].cpuPercent = app.isActive ? 6.5 : 0.8
                     updatedAgents[i].state = app.isActive ? .activeFocus : .idle
-                    if let appIcon = app.icon {
+                    if let appIcon = app.icon, updatedAgents[i].icon !== appIcon {
+                        // Only reassign on a real icon change; assignment clears iconBase64 cache
                         updatedAgents[i].icon = appIcon
                     }
                 } else if updatedAgents[i].name == "ClaudeCode" || updatedAgents[i].bundleId.contains("claude-code") {

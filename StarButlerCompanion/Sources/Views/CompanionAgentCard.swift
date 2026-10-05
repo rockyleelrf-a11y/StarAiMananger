@@ -60,6 +60,15 @@ public struct CompanionAgentCard: View {
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.orange)
                         }
+
+                        if agent.isDemoData == true {
+                            Text("演示数据")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1.5)
+                                .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                        }
                     }
                 }
                 

@@ -96,7 +96,7 @@ def build_menu(icon):
             lines.append(pystray.MenuItem(f"Task: {task}", None, enabled=False))
         if agent.today_tokens or agent.history_tokens:
             lines.append(pystray.MenuItem(
-                f"Today: {agent.fmt_tokens(agent.today_tokens)} | Total: {agent.fmt_tokens(agent.history_tokens)}",
+                f"Today: {agent.fmt_tokens(agent.today_tokens)} | Total: {agent.fmt_tokens(agent.history_tokens)}" + (" (demo data)" if agent.is_demo else ""),
                 None, enabled=False))
         if agent.is_running:
             lines.append(pystray.MenuItem("Stop", kill_app(agent)))
