@@ -51,7 +51,16 @@ public final class CompanionClient: ObservableObject {
     
     // Cloud WebSocket Task
     private var webSocketTask: URLSessionWebSocketTask?
+    private var cloudSession: URLSession?
     private var cloudReconnectItem: DispatchWorkItem?
+
+    // Reuse one session across reconnects; never invalidate (would leak per-reconnect otherwise)
+    private func ensureSession() -> URLSession {
+        if let session = cloudSession { return session }
+        let session = URLSession(configuration: .default)
+        cloudSession = session
+        return session
+    }
     
     public var runningAgents: [CompanionAgent] {
         agents.filter { $0.isRunning }
@@ -195,8 +204,8 @@ public final class CompanionClient: ObservableObject {
                 
                 // Parse full newline-terminated JSON payloads
                 while let idx = self.lanReceiveBuffer.firstIndex(of: 0x0A) {
-                    let packet = self.lanReceiveBuffer.subdata(in: 0..<idx)
-                    self.lanReceiveBuffer.removeSubrange(0...idx)
+                    let packet = self.lanReceiveBuffer.subdata(in: self.lanReceiveBuffer.startIndex..<idx)
+                    self.lanReceiveBuffer.removeSubrange(self.lanReceiveBuffer.startIndex...idx)
                     
                     if let msg = try? JSONDecoder().decode(CompanionMessagePayload.self, from: packet),
                        let newAgents = msg.agents {
@@ -236,9 +245,11 @@ public final class CompanionClient: ObservableObject {
         
         let wsUrlString = "\(wsScheme)://\(hostPart)/relay?token=\(auth.token)&role=client"
         guard let url = URL(string: wsUrlString) else { return }
-        
-        let session = URLSession(configuration: .default)
-        let task = session.webSocketTask(with: url)
+
+        // Token in Authorization header (query param kept for older relay servers)
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(auth.token)", forHTTPHeaderField: "Authorization")
+        let task = ensureSession().webSocketTask(with: request)
         self.webSocketTask = task
         task.resume()
         

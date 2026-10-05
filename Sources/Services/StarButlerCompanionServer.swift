@@ -17,7 +17,8 @@ public struct CompanionAgentPayload: Codable, Identifiable {
     public let historyTokens: Int
     public let tokensPerSec: Int
     public let iconBase64: String?
-    
+    public let isDemoData: Bool
+
     public init(from agent: AIAgentApp) {
         self.id = agent.id
         self.name = agent.name
@@ -34,6 +35,7 @@ public struct CompanionAgentPayload: Codable, Identifiable {
         self.historyTokens = agent.historyTokens
         self.tokensPerSec = agent.tokensPerSec
         self.iconBase64 = agent.iconBase64
+        self.isDemoData = agent.isDemoData
     }
 }
 
@@ -202,28 +204,30 @@ public final class StarButlerCompanionServer: ObservableObject {
         }
     }
     
-    private func receiveLoop(on connection: NWConnection) {
+    private func receiveLoop(on connection: NWConnection, buffer: Data = Data()) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self, weak connection] data, _, isComplete, error in
             guard let self = self, let connection = connection else { return }
-            
+
+            var buf = buffer
             if let data = data, !data.isEmpty {
-                // Split by newline
-                let chunks = data.split(separator: 0x0A)
-                for chunk in chunks {
-                    if let msg = try? JSONDecoder().decode(CompanionMessage.self, from: chunk) {
-                        if let action = msg.action {
-                            DispatchQueue.main.async {
-                                self.onActionReceived?(action, msg.targetId)
-                            }
+                buf.append(data)
+                // Parse complete newline-terminated packets; keep the tail buffered
+                while let nl = buf.firstIndex(of: 0x0A) {
+                    let packet = buf.subdata(in: buf.startIndex..<nl)
+                    buf.removeSubrange(buf.startIndex...nl)
+                    if let msg = try? JSONDecoder().decode(CompanionMessage.self, from: packet),
+                       let action = msg.action {
+                        DispatchQueue.main.async {
+                            self.onActionReceived?(action, msg.targetId)
                         }
                     }
                 }
             }
-            
+
             if isComplete || error != nil {
                 self.removeConnection(connection)
             } else {
-                self.receiveLoop(on: connection)
+                self.receiveLoop(on: connection, buffer: buf)
             }
         }
     }

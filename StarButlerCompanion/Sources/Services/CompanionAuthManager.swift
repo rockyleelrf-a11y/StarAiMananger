@@ -7,7 +7,7 @@ public final class CompanionAuthManager: ObservableObject {
     @Published public var isLoggedIn: Bool = false
     @Published public var userEmail: String = ""
     @Published public var token: String = ""
-    @Published public var relayServerUrl: String = "http://192.168.49.168:8765"
+    @Published public var relayServerUrl: String = ""
     @Published public var isHostOnline: Bool = false
     @Published public var hostMachineName: String? = nil
     @Published public var lastSeen: Double? = nil
@@ -41,8 +41,12 @@ public final class CompanionAuthManager: ObservableObject {
     
     public func saveRelayUrl(_ url: String) {
         var cleanUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cleanUrl.hasPrefix("http://") && !cleanUrl.hasPrefix("https://") {
+        if !cleanUrl.isEmpty && !cleanUrl.hasPrefix("http://") && !cleanUrl.hasPrefix("https://") {
             cleanUrl = "http://" + cleanUrl
+        }
+        guard cleanUrl.hasPrefix("http") else {
+            errorMessage = "请先填写云中继服务器地址"
+            return
         }
         self.relayServerUrl = cleanUrl
         userDefaults.set(cleanUrl, forKey: kRelayUrlKey)

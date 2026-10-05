@@ -26,7 +26,7 @@ public struct CompanionAuthSheet: View {
                         Text("地址")
                             .frame(width: 50, alignment: .leading)
                             .font(.system(size: 14))
-                        TextField("http://192.168.49.168:8765", text: $relayUrl)
+                        TextField("http://你的云中继服务器:8765", text: $relayUrl)
                             .font(.system(size: 13))
                             #if canImport(UIKit)
                             .keyboardType(.URL)

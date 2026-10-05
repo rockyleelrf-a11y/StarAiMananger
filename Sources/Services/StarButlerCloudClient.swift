@@ -7,19 +7,28 @@ public final class StarButlerCloudClient: ObservableObject {
     @Published public var isLoggedIn: Bool = false
     @Published public var userEmail: String = ""
     @Published public var token: String = ""
-    @Published public var relayServerUrl: String = "http://192.168.49.168:8765"
+    @Published public var relayServerUrl: String = ""
     @Published public var isWebSocketConnected: Bool = false
     @Published public var statusMessage: String = "未登录"
     @Published public var isConnecting: Bool = false
-    
+
     public var onActionReceived: ((_ action: String, _ targetId: String?) -> Void)?
-    
+
     private var webSocketTask: URLSessionWebSocketTask?
+    private var cloudSession: URLSession?
     private var reconnectWorkItem: DispatchWorkItem?
     private let userDefaults = UserDefaults.standard
     private let kEmailKey = "starbutler_cloud_email"
     private let kTokenKey = "starbutler_cloud_token"
     private let kRelayUrlKey = "starbutler_cloud_relay_url"
+
+    // Reuse one session across reconnects; never invalidate (would leak per-reconnect otherwise)
+    private func ensureSession() -> URLSession {
+        if let session = cloudSession { return session }
+        let session = URLSession(configuration: .default)
+        cloudSession = session
+        return session
+    }
     
     private init() {
         loadPersistedCredentials()
@@ -46,8 +55,12 @@ public final class StarButlerCloudClient: ObservableObject {
     
     public func saveRelayUrl(_ url: String) {
         var cleanUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cleanUrl.hasPrefix("http://") && !cleanUrl.hasPrefix("https://") {
+        if !cleanUrl.isEmpty && !cleanUrl.hasPrefix("http://") && !cleanUrl.hasPrefix("https://") {
             cleanUrl = "http://" + cleanUrl
+        }
+        guard cleanUrl.hasPrefix("http") else {
+            statusMessage = "请先填写云中继服务器地址"
+            return
         }
         self.relayServerUrl = cleanUrl
         userDefaults.set(cleanUrl, forKey: kRelayUrlKey)
@@ -184,14 +197,16 @@ public final class StarButlerCloudClient: ObservableObject {
         
         let hostName = (Host.current().localizedName ?? "Mac").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Mac"
         let wsUrlString = "\(wsScheme)://\(hostPart)/relay?token=\(token)&role=host&name=\(hostName)"
-        
+
         guard let url = URL(string: wsUrlString) else {
             self.statusMessage = "WebSocket 地址格式错误"
             return
         }
-        
-        let session = URLSession(configuration: .default)
-        let task = session.webSocketTask(with: url)
+
+        // Token in Authorization header (query param kept for older relay servers)
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let task = ensureSession().webSocketTask(with: request)
         self.webSocketTask = task
         task.resume()
         

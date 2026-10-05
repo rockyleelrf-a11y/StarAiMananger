@@ -7,7 +7,7 @@ cd "$DIR"
 ACTION="${1:-sim}"
 BUILD_DIR="$DIR/build"
 APP_NAME="StarButlerCompanion"
-BUNDLE_IDENTIFIER="com.rockylee.StarButlerCompanion"
+BUNDLE_IDENTIFIER="com.starbutler.companion"
 VERSION="1.0.0"
 
 SOURCES=(

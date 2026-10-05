@@ -247,7 +247,7 @@ pbxproj_content = f"""// !$*UTF8*$!
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t);
 \t\t\t\tMARKETING_VERSION = 1.0.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = "com.rockylee.StarButlerCompanion";
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = "com.starbutler.companion";
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;
 \t\t\t\tSWIFT_VERSION = 5.0;
@@ -275,7 +275,7 @@ pbxproj_content = f"""// !$*UTF8*$!
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t);
 \t\t\t\tMARKETING_VERSION = 1.0.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = "com.rockylee.StarButlerCompanion";
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = "com.starbutler.companion";
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;
 \t\t\t\tSWIFT_VERSION = 5.0;
